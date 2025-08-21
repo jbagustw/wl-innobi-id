@@ -106,12 +106,12 @@
                 const response = await fetch(url, options);
                 
                 // Check if response is JSON
-                const contentType = response.headers.get('content-type');
-                if (!contentType || !contentType.includes('application/json')) {
-                    const text = await response.text();
-                    console.error('Non-JSON response:', text);
-                    throw new Error('Server returned non-JSON response. Please check server configuration.');
-                }
+              //  const contentType = response.headers.get('content-type');
+               // if (!contentType || !contentType.includes('application/json')) {
+                //    const text = await response.text();
+                 //   console.error('Non-JSON response:', text);
+               //     throw new Error('Server returned non-JSON response. Please check server configuration.');
+               // }
                 
                 const result = await response.json();
                 hideLoading();
