@@ -877,43 +877,42 @@ async function apiCall(endpoint, method = 'GET', data = null) {
         }
 
         // Compositions
-        async function loadCompositions() {
-            try {
-                const compositions = await apiCall('compositions');
-                
-                document.getElementById('content').innerHTML = `
-                    <div class="table-container">
-                        <div class="table-header">
-                            <h2 class="table-title">Compositions</h2>
-                        </div>
-                        <table id="compositionsTable">
-                            <thead>
-                                <tr>
-                                    <th>Name</th>
-                                    <th>Theme</th>
-                                    <th>User</th>
-                                    <th>Song Count</th>
-                                    <th>Created</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${compositions.map(comp => `
-                                    <tr>
-                                        <td>${comp.name}</td>
-                                        <td>${comp.theme}</td>
-                                        <td>${comp.username || '-'}</td>
-                                        <td>${comp.song_count || 0}</td>
-                                        <td>${new Date(comp.created_at).toLocaleDateString('id-ID')}</td>
-                                    </tr>
-                                `).join('')}
-                            </tbody>
-                        </table>
+      // Compositions
+async function loadCompositions() {
+    try {
+        const compositions = await apiCall('compositions');
+        
+        if (compositions.length > 0) {
+            document.getElementById('content').innerHTML = `
+                <div class="table-container">
+                    <div class="table-header">
+                        <h2 class="table-title">Compositions</h2>
                     </div>
-                `;
-            } catch (error) {
-                showAlert('Gagal memuat compositions: ' + error.message, 'error');
-            }
-        }
+                    <table id="compositionsTable">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Theme</th>
+                                <th>User</th>
+                                <th>Song Count</th>
+                                <th>Created</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${compositions.map(comp => `
+                                <tr>
+                                    <td>${comp.name}</td>
+                                    <td>${comp.theme}</td>
+                                    <td>${comp.username || '-'}</td>
+                                    <td>${comp.song_count || 0}</td>
+                                    <td>${new Date(comp.created_at).toLocaleDateString('id-ID')}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        } else {
             document.getElementById('content').innerHTML = `
                 <div class="no-data">
                     <h3>Compositions</h3>
@@ -921,6 +920,10 @@ async function apiCall(endpoint, method = 'GET', data = null) {
                 </div>
             `;
         }
+    } catch (error) {
+        showAlert('Gagal memuat compositions: ' + error.message, 'error');
+    }
+}
 
         // Activities
         async function loadActivities() {
