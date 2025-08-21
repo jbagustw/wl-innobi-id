@@ -877,53 +877,45 @@ async function apiCall(endpoint, method = 'GET', data = null) {
         }
 
         // Compositions
-      // Compositions
-async function loadCompositions() {
-    try {
-        const compositions = await apiCall('compositions');
-        
-        if (compositions.length > 0) {
+ // Activities
+        async function loadActivities() {
+            try {
+                const stats = await apiCall('stats');
+                const activities = stats.recent_activities || [];
+            
             document.getElementById('content').innerHTML = `
                 <div class="table-container">
                     <div class="table-header">
-                        <h2 class="table-title">Compositions</h2>
+                        <h2 class="table-title">All Activities</h2>
+                        <input type="text" class="search-box" placeholder="Search activities..." onkeyup="filterTable(this, 'activitiesTable')">
                     </div>
-                    <table id="compositionsTable">
+                    <table id="activitiesTable">
                         <thead>
                             <tr>
-                                <th>Name</th>
-                                <th>Theme</th>
                                 <th>User</th>
-                                <th>Song Count</th>
-                                <th>Created</th>
+                                <th>Action</th>
+                                <th>Type</th>
+                                <th>Time</th>
                             </tr>
                         </thead>
                         <tbody>
-                            ${compositions.map(comp => `
+                            ${activities.map(activity => `
                                 <tr>
-                                    <td>${comp.name}</td>
-                                    <td>${comp.theme}</td>
-                                    <td>${comp.username || '-'}</td>
-                                    <td>${comp.song_count || 0}</td>
-                                    <td>${new Date(comp.created_at).toLocaleDateString('id-ID')}</td>
+                                    <td>${activity.username || 'System'}</td>
+                                    <td>${activity.action}</td>
+                                    <td>${activity.entity_type || '-'}</td>
+                                    <td>${new Date(activity.created_at).toLocaleString('id-ID')}</td>
                                 </tr>
                             `).join('')}
                         </tbody>
                     </table>
                 </div>
             `;
-        } else {
-            document.getElementById('content').innerHTML = `
-                <div class="no-data">
-                    <h3>Compositions</h3>
-                    <p>No compositions available yet.</p>
-                </div>
-            `;
         }
-    } catch (error) {
-        showAlert('Gagal memuat compositions: ' + error.message, 'error');
+        catch (error) { // Menambahkan blok catch yang hilang
+            showAlert('Gagal memuat activities: ' + error.message, 'error');
+        }
     }
-}
 
         // Activities
         async function loadActivities() {
