@@ -1,5 +1,5 @@
 <?php
-ob_start(); // Start output buffering
+ob_start();
 error_reporting(0);
 ini_set('display_errors', 0);
 ini_set('log_errors', 1);
@@ -20,7 +20,7 @@ require_once 'config.php';
 require_once 'database.php';
 require_once 'auth.php';
 
-// Error handler untuk menangkap semua error
+// Error handler
 set_error_handler(function($errno, $errstr, $errfile, $errline) {
     http_response_code(500);
     echo json_encode(['error' => 'Server error: ' . $errstr, 'type' => 'error_handler']);
@@ -39,32 +39,29 @@ try {
     $db = new Database();
     $auth = new Auth($db);
 
-    // Get request data - SIMPLIFIED routing
+    // Get request data
     $method = $_SERVER['REQUEST_METHOD'];
     
-    // Parse URL - gunakan metode yang lebih sederhana
+    // Parse URL
     $request_uri = $_SERVER['REQUEST_URI'];
-    
-    // Hapus query string
     $uri_parts = explode('?', $request_uri);
     $path = $uri_parts[0];
     
-    // Cari posisi api.php
+    // Find api.php position
     $api_pos = strpos($path, 'api.php');
     if ($api_pos !== false) {
-        // Ambil path setelah api.php
-        $path = substr($path, $api_pos + 7); // 7 = length of 'api.php'
+        $path = substr($path, $api_pos + 7);
     }
     
-    // Bersihkan slash
+    // Clean path
     $path = trim($path, '/');
     
-    // Jika kosong, coba dari query parameter
+    // If empty, try from query parameter
     if (empty($path) && isset($_GET['endpoint'])) {
         $path = $_GET['endpoint'];
     }
     
-    // Split path menjadi segments
+    // Split path into segments
     $request = !empty($path) ? explode('/', $path) : [];
     
     // Get JSON input
@@ -73,9 +70,6 @@ try {
     // Route the request
     $endpoint = $request[0] ?? '';
     $id = $request[1] ?? null;
-    
-    // Debug log (hapus di production)
-    // error_log("Endpoint: $endpoint, ID: $id, Path: $path");
 
     switch ($endpoint) {
         case 'auth':
@@ -99,7 +93,6 @@ try {
             break;
             
         case 'test':
-            // Endpoint untuk testing
             echo json_encode([
                 'success' => true,
                 'message' => 'API is working',
@@ -273,7 +266,7 @@ function handleSongs($db, $auth, $method, $id, $input) {
         case 'POST':
             $user = $auth->requireAuth();
             
-            // Validasi input
+            // Validate input
             if (!isset($input['title']) || !isset($input['song_key']) || !isset($input['tempo']) || !isset($input['theme'])) {
                 throw new Exception('Data lagu tidak lengkap', 400);
             }
@@ -350,23 +343,30 @@ function handleSongs($db, $auth, $method, $id, $input) {
     }
 }
 
-// Composition handlers
+// Composition handlers - UPDATED FOR USER-SPECIFIC ACCESS
 function handleCompositions($db, $auth, $method, $id, $input) {
     $user = $auth->requireAuth();
     
     switch ($method) {
         case 'GET':
             if ($id) {
-                // Get specific composition with songs
-                $comp = $db->query(
-                    "SELECT c.*, u.username FROM compositions c 
-                     JOIN users u ON c.user_id = u.id 
-                     WHERE c.id = ? AND (c.user_id = ? OR ?)",
-                    [$id, $user['id'], $user['role'] === 'admin' ? 1 : 0]
-                );
+                // Get specific composition - ONLY if owned by user or user is admin
+                $sql = "SELECT c.*, u.username FROM compositions c 
+                        JOIN users u ON c.user_id = u.id 
+                        WHERE c.id = ?";
+                $params = [$id];
+                
+                // Add user restriction for non-admins
+                if ($user['role'] !== 'admin') {
+                    $sql .= " AND c.user_id = ?";
+                    $params[] = $user['id'];
+                }
+                
+                $comp = $db->query($sql, $params);
                 
                 if (!empty($comp)) {
                     $comp = $comp[0];
+                    // Get songs for this composition
                     $comp['songs'] = $db->query(
                         "SELECT s.*, cs.order_position, cs.notes 
                          FROM composition_songs cs 
@@ -377,11 +377,16 @@ function handleCompositions($db, $auth, $method, $id, $input) {
                     );
                     echo json_encode($comp);
                 } else {
-                    echo json_encode(null);
+                    http_response_code(404);
+                    echo json_encode(['error' => 'Composition not found or access denied']);
                 }
             } else {
-                // Get all compositions for user (or all for admin)
-                if ($user['role'] === 'admin') {
+                // Get all compositions - FILTERED BY USER
+                // Check for user_id parameter (for frontend compatibility)
+                $filterUserId = $_GET['user_id'] ?? null;
+                
+                if ($user['role'] === 'admin' && !$filterUserId) {
+                    // Admin can see all compositions if no specific user filter
                     $sql = "SELECT c.*, u.username, COUNT(cs.id) as song_count 
                            FROM compositions c 
                            LEFT JOIN users u ON c.user_id = u.id
@@ -390,13 +395,17 @@ function handleCompositions($db, $auth, $method, $id, $input) {
                            ORDER BY c.created_at DESC";
                     $result = $db->query($sql);
                 } else {
+                    // Regular users only see their own compositions
+                    // Or admin with specific user filter
+                    $userId = ($user['role'] === 'admin' && $filterUserId) ? $filterUserId : $user['id'];
+                    
                     $sql = "SELECT c.*, COUNT(cs.id) as song_count 
                            FROM compositions c 
                            LEFT JOIN composition_songs cs ON c.id = cs.composition_id 
                            WHERE c.user_id = ? 
                            GROUP BY c.id 
                            ORDER BY c.created_at DESC";
-                    $result = $db->query($sql, [$user['id']]);
+                    $result = $db->query($sql, [$userId]);
                 }
                 echo json_encode($result);
             }
@@ -406,15 +415,15 @@ function handleCompositions($db, $auth, $method, $id, $input) {
             $db->beginTransaction();
             
             try {
-                // Validasi input
+                // Validate input
                 if (!isset($input['name']) || !isset($input['theme'])) {
                     throw new Exception('Nama dan tema komposisi harus diisi', 400);
                 }
                 
-                // Create composition
+                // Create composition - ALWAYS use authenticated user's ID
                 $sql = "INSERT INTO compositions (user_id, name, theme, notes, event_date) VALUES (?, ?, ?, ?, ?)";
                 $compId = $db->execute($sql, [
-                    $user['id'],
+                    $user['id'], // Always use authenticated user's ID
                     $input['name'],
                     $input['theme'],
                     $input['notes'] ?? null,
@@ -447,10 +456,15 @@ function handleCompositions($db, $auth, $method, $id, $input) {
             break;
             
         case 'PUT':
-            // Verify ownership
+            // Verify ownership - STRICT CHECK
             $comp = $db->query("SELECT user_id FROM compositions WHERE id = ?", [$id]);
-            if (empty($comp) || ($comp[0]['user_id'] != $user['id'] && $user['role'] !== 'admin')) {
-                throw new Exception('Unauthorized', 403);
+            if (empty($comp)) {
+                throw new Exception('Composition not found', 404);
+            }
+            
+            // Only owner or admin can edit
+            if ($comp[0]['user_id'] != $user['id'] && $user['role'] !== 'admin') {
+                throw new Exception('Unauthorized - you can only edit your own compositions', 403);
             }
             
             $db->beginTransaction();
@@ -488,6 +502,13 @@ function handleCompositions($db, $auth, $method, $id, $input) {
                 }
                 
                 $db->commit();
+                
+                // Log activity
+                $db->execute(
+                    "INSERT INTO activity_logs (user_id, action, entity_type, entity_id, details, ip_address) VALUES (?, ?, ?, ?, ?, ?)",
+                    [$user['id'], 'update', 'composition', $id, json_encode($input), $_SERVER['REMOTE_ADDR'] ?? '']
+                );
+                
                 echo json_encode(['success' => true]);
             } catch (Exception $e) {
                 $db->rollback();
@@ -496,12 +517,18 @@ function handleCompositions($db, $auth, $method, $id, $input) {
             break;
             
         case 'DELETE':
-            // Verify ownership
+            // Verify ownership - STRICT CHECK
             $comp = $db->query("SELECT user_id FROM compositions WHERE id = ?", [$id]);
-            if (empty($comp) || ($comp[0]['user_id'] != $user['id'] && $user['role'] !== 'admin')) {
-                throw new Exception('Unauthorized', 403);
+            if (empty($comp)) {
+                throw new Exception('Composition not found', 404);
             }
             
+            // Only owner or admin can delete
+            if ($comp[0]['user_id'] != $user['id'] && $user['role'] !== 'admin') {
+                throw new Exception('Unauthorized - you can only delete your own compositions', 403);
+            }
+            
+            // Delete composition (cascade will handle composition_songs)
             $db->execute("DELETE FROM compositions WHERE id = ?", [$id]);
             
             // Log activity
@@ -534,6 +561,7 @@ function handleStats($db, $auth, $method) {
     ];
     
     if ($user['role'] === 'admin') {
+        $stats['total_compositions'] = $db->query("SELECT COUNT(*) as count FROM compositions")[0]['count'];
         $stats['recent_activities'] = $db->query(
             "SELECT al.*, u.username FROM activity_logs al 
              LEFT JOIN users u ON al.user_id = u.id 

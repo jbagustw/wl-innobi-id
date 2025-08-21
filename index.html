@@ -582,35 +582,39 @@
             }
         }
 
-        async function viewComposition(id) {
+        async function saveComposition() {
+            const name = document.getElementById('comp-name').value.trim();
+            const theme = document.getElementById('comp-theme').value.trim();
+            const notes = document.getElementById('comp-notes').value.trim();
+            
+            if (!name || !theme || state.selectedSongs.length === 0) {
+                showMessage('Mohon isi nama, tema, dan pilih minimal satu lagu', 'error');
+                return;
+            }
+            
             try {
-                const comp = await apiCall(`compositions/${id}`);
+                const compositionData = {
+                    name: name,
+                    theme: theme,
+                    notes: notes,
+                    user_id: currentUser.id, // Explicitly include user_id
+                    songs: state.selectedSongs.map(song => ({ id: song.id, notes: song.notes || '' }))
+                };
                 
-                const modal = document.createElement('div');
-                modal.className = 'modal show';
-                modal.innerHTML = `
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h2>${comp.name}</h2>
-                            <span class="modal-close" onclick="closeModal()">×</span>
-                        </div>
-                        <h3>Daftar Lagu:</h3>
-                        <div style="margin-top: 10px;">
-                            ${comp.songs ? comp.songs.map((song, index) => `
-                                <div style="padding: 10px; background: #f9f9f9; margin-bottom: 10px; border-radius: 6px;">
-                                    <strong>${index + 1}. ${song.title}</strong> (${song.song_key})
-                                    <div style="color: #666; font-size: 14px; margin-top: 5px;">
-                                        ${getTempoLabel(song.tempo)} | ${song.theme}
-                                    </div>
-                                </div>
-                            `).join('') : '<p>Tidak ada lagu dalam komposisi ini</p>'}
-                        </div>
-                    </div>
-                `;
-                modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
-                document.body.appendChild(modal);
+                await apiCall('compositions', 'POST', compositionData);
+                showMessage('Komposisi berhasil disimpan!', 'success');
+                
+                // Reset form
+                document.getElementById('comp-name').value = '';
+                document.getElementById('comp-theme').value = '';
+                document.getElementById('comp-notes').value = '';
+                state.selectedSongs = [];
+                renderSelectedSongs();
+                
+                // Reload compositions
+                loadCompositions();
             } catch (error) {
-                showMessage('Error loading composition', 'error');
+                showMessage('Gagal menyimpan komposisi: ' + error.message, 'error');
             }
         }
 
