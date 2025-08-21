@@ -519,40 +519,70 @@ window.onload = function() {
     init();
 };
 
-        // Mock data untuk demo
-        const mockData = {
-            stats: {
-                total_users: 25,
-                total_songs: 150,
-                user_compositions: 12,
-                recent_activities: [
-                    { username: 'john_doe', action: 'Added new song', entity_type: 'song', created_at: '2024-08-20T10:30:00Z' },
-                    { username: 'jane_smith', action: 'Created composition', entity_type: 'composition', created_at: '2024-08-20T09:15:00Z' },
-                    { username: 'admin', action: 'User registered', entity_type: 'user', created_at: '2024-08-19T16:45:00Z' },
-                    { username: 'worship_leader', action: 'Updated song', entity_type: 'song', created_at: '2024-08-19T14:20:00Z' }
-                ]
-            },
-            users: [
-                { id: 1, username: 'john_doe', full_name: 'John Doe', email: 'john@example.com', role: 'user', is_active: true, created_at: '2024-01-15T10:00:00Z' },
-                { id: 2, username: 'jane_smith', full_name: 'Jane Smith', email: 'jane@example.com', role: 'user', is_active: true, created_at: '2024-02-01T11:30:00Z' },
-                { id: 3, username: 'worship_leader', full_name: 'Worship Leader', email: 'leader@church.com', role: 'admin', is_active: true, created_at: '2024-01-01T00:00:00Z' },
-                { id: 4, username: 'old_user', full_name: 'Old User', email: 'old@example.com', role: 'user', is_active: false, created_at: '2023-12-01T15:00:00Z' }
-            ],
-            songs: [
-                { id: 1, title: 'Amazing Grace', song_key: 'G', tempo: 80, theme: 'Worship', artist: 'Traditional' },
-                { id: 2, title: 'How Great is Our God', song_key: 'C', tempo: 90, theme: 'Praise', artist: 'Chris Tomlin' },
-                { id: 3, title: 'Way Maker', song_key: 'D', tempo: 75, theme: 'Worship', artist: 'Sinach' },
-                { id: 4, title: 'Reckless Love', song_key: 'A', tempo: 85, theme: 'Worship', artist: 'Cory Asbury' },
-                { id: 5, title: 'Good Good Father', song_key: 'F', tempo: 70, theme: 'Worship', artist: 'Chris Tomlin' }
-            ]
-        };
+        // API Configuration
+        const API_BASE_URL = window.location.origin + window.location.pathname.replace('admin.html', 'api.php');
+        let authToken = localStorage.getItem('worship_token');
+        let currentUser = null;
 
-        let currentUser = { id: 1, username: 'admin', full_name: 'Administrator', role: 'admin' };
         let currentSection = 'dashboard';
         let editingSongId = null;
 
+        // Real API calls
+        async function apiCall(endpoint, method = 'GET', data = null) {
+            try {
+                const url = `${API_BASE_URL}/${endpoint}`;
+                const options = {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                };
+                
+                if (authToken) {
+                    options.headers['Authorization'] = `Bearer ${authToken}`;
+                }
+                
+                if (data && (method === 'POST' || method === 'PUT')) {
+                    options.body = JSON.stringify(data);
+                }
+                
+                const response = await fetch(url, options);
+                const result = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(result.error || 'Request failed');
+                }
+                
+                return result;
+            } catch (error) {
+                throw error;
+            }
+        }
+
         // Initialize
-        function init() {
+        async function init() {
+            // Check authentication
+            const savedToken = localStorage.getItem('worship_token');
+            const savedUser = localStorage.getItem('worship_user');
+            
+            if (!savedToken || !savedUser) {
+                window.location.href = 'index.html';
+                return;
+            }
+            
+            authToken = savedToken;
+            currentUser = JSON.parse(savedUser);
+            
+            // Verify token is still valid
+            try {
+                await apiCall('auth/verify', 'GET');
+            } catch (error) {
+                localStorage.removeItem('worship_token');
+                localStorage.removeItem('worship_user');
+                window.location.href = 'index.html';
+                return;
+            }
+            
             document.getElementById('adminName').textContent = currentUser.full_name || currentUser.username;
             
             // Add event listeners to sidebar items
@@ -609,30 +639,35 @@ window.onload = function() {
             const content = document.getElementById('content');
             content.innerHTML = '<div class="loading">Loading...</div>';
             
-            setTimeout(() => {
-                switch(section) {
-                    case 'dashboard':
-                        loadDashboard();
-                        break;
-                    case 'users':
-                        loadUsers();
-                        break;
-                    case 'songs':
-                        loadSongs();
-                        break;
-                    case 'compositions':
-                        loadCompositions();
-                        break;
-                    case 'activities':
-                        loadActivities();
-                        break;
+            setTimeout(async () => {
+                try {
+                    switch(section) {
+                        case 'dashboard':
+                            await loadDashboard();
+                            break;
+                        case 'users':
+                            await loadUsers();
+                            break;
+                        case 'songs':
+                            await loadSongs();
+                            break;
+                        case 'compositions':
+                            await loadCompositions();
+                            break;
+                        case 'activities':
+                            await loadActivities();
+                            break;
+                    }
+                } catch (error) {
+                    content.innerHTML = '<div class="error">Error loading content: ' + error.message + '</div>';
                 }
             }, 200);
         }
 
         // Dashboard
-        function loadDashboard() {
-            const stats = mockData.stats;
+        async function loadDashboard() {
+            try {
+                const stats = await apiCall('stats');
             
             document.getElementById('content').innerHTML = `
                 <div class="stats-grid">
@@ -676,11 +711,15 @@ window.onload = function() {
                     </table>
                 </div>
             `;
+            } catch (error) {
+                showAlert('Gagal memuat activities: ' + error.message, 'error');
+            }
         }
 
         // Users
-        function loadUsers() {
-            const users = mockData.users;
+        async function loadUsers() {
+            try {
+                const users = await apiCall('users');
             
             document.getElementById('content').innerHTML = `
                 <div class="table-container">
@@ -721,11 +760,15 @@ window.onload = function() {
                     </table>
                 </div>
             `;
+            } catch (error) {
+                showAlert('Gagal memuat users: ' + error.message, 'error');
+            }
         }
 
         // Songs
-        function loadSongs() {
-            const songs = mockData.songs;
+        async function loadSongs() {
+            try {
+                const songs = await apiCall('songs');
             
             document.getElementById('content').innerHTML = `
                 <div class="table-container">
@@ -765,10 +808,49 @@ window.onload = function() {
                     </table>
                 </div>
             `;
+            } catch (error) {
+                showAlert('Gagal memuat songs: ' + error.message, 'error');
+            }
         }
 
         // Compositions
-        function loadCompositions() {
+        async function loadCompositions() {
+            try {
+                const compositions = await apiCall('compositions');
+                
+                document.getElementById('content').innerHTML = `
+                    <div class="table-container">
+                        <div class="table-header">
+                            <h2 class="table-title">Compositions</h2>
+                        </div>
+                        <table id="compositionsTable">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Theme</th>
+                                    <th>User</th>
+                                    <th>Song Count</th>
+                                    <th>Created</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${compositions.map(comp => `
+                                    <tr>
+                                        <td>${comp.name}</td>
+                                        <td>${comp.theme}</td>
+                                        <td>${comp.username || '-'}</td>
+                                        <td>${comp.song_count || 0}</td>
+                                        <td>${new Date(comp.created_at).toLocaleDateString('id-ID')}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            } catch (error) {
+                showAlert('Gagal memuat compositions: ' + error.message, 'error');
+            }
+        }
             document.getElementById('content').innerHTML = `
                 <div class="no-data">
                     <h3>Compositions</h3>
@@ -778,8 +860,10 @@ window.onload = function() {
         }
 
         // Activities
-        function loadActivities() {
-            const activities = mockData.stats.recent_activities;
+        async function loadActivities() {
+            try {
+                const stats = await apiCall('stats');
+                const activities = stats.recent_activities || [];
             
             document.getElementById('content').innerHTML = `
                 <div class="table-container">
@@ -833,20 +917,19 @@ window.onload = function() {
         }
 
         // User management
-        function toggleUserStatus(userId, activate) {
+        async function toggleUserStatus(userId, activate) {
             const action = activate ? 'activated' : 'deactivated';
             
             if (confirm(`Are you sure you want to ${activate ? 'activate' : 'deactivate'} this user?`)) {
-                // Update mock data
-                const user = mockData.users.find(u => u.id === userId);
-                if (user) {
-                    user.is_active = activate;
+                try {
+                    await apiCall(`users/${userId}`, 'PUT', { is_active: activate });
+                    showAlert(`User ${action} successfully`, 'success');
+                    loadUsers();
+                } catch (error) {
+                    showAlert(`Failed to ${action} user: ` + error.message, 'error');
                 }
-                
-                showAlert(`User ${action} successfully!`);
-                loadUsers();
             }
-        }
+
 
         // Song management
         function showAddSongModal() {
@@ -856,32 +939,35 @@ window.onload = function() {
             document.getElementById('songModal').classList.add('show');
         }
 
-        function editSong(songId) {
-            editingSongId = songId;
-            const song = mockData.songs.find(s => s.id === songId);
-            
-            if (song) {
-                document.getElementById('songModalTitle').textContent = 'Edit Song';
-                document.getElementById('songTitle').value = song.title;
-                document.getElementById('songKey').value = song.song_key;
-                document.getElementById('songTempo').value = song.tempo;
-                document.getElementById('songTheme').value = song.theme;
-                document.getElementById('songArtist').value = song.artist || '';
-                document.getElementById('songLyrics').value = song.lyrics || '';
-                document.getElementById('songModal').classList.add('show');
+        async function editSong(songId) {
+            try {
+                editingSongId = songId;
+                const song = await apiCall(`songs/${songId}`);
+                
+                if (song) {
+                    document.getElementById('songModalTitle').textContent = 'Edit Song';
+                    document.getElementById('songTitle').value = song.title;
+                    document.getElementById('songKey').value = song.song_key;
+                    document.getElementById('songTempo').value = song.tempo;
+                    document.getElementById('songTheme').value = song.theme;
+                    document.getElementById('songArtist').value = song.artist || '';
+                    document.getElementById('songLyrics').value = song.lyrics || '';
+                    document.getElementById('songModal').classList.add('show');
+                }
+            } catch (error) {
+                showAlert('Gagal memuat data lagu: ' + error.message, 'error');
             }
         }
 
-        function deleteSong(songId) {
+        async function deleteSong(songId) {
             if (confirm('Are you sure you want to delete this song?')) {
-                // Remove from mock data
-                const index = mockData.songs.findIndex(s => s.id === songId);
-                if (index !== -1) {
-                    mockData.songs.splice(index, 1);
+                try {
+                    await apiCall(`songs/${songId}`, 'DELETE');
+                    showAlert('Song deleted successfully!', 'success');
+                    loadSongs();
+                } catch (error) {
+                    showAlert('Failed to delete song: ' + error.message, 'error');
                 }
-                
-                showAlert('Song deleted successfully!');
-                loadSongs();
             }
         }
 
@@ -893,37 +979,34 @@ window.onload = function() {
         document.addEventListener('DOMContentLoaded', function() {
             const songForm = document.getElementById('songForm');
             if (songForm) {
-                songForm.addEventListener('submit', function(e) {
+                songForm.addEventListener('submit', async function(e) {
                     e.preventDefault();
                     
                     const songData = {
                         title: document.getElementById('songTitle').value,
                         song_key: document.getElementById('songKey').value,
-                        tempo: parseInt(document.getElementById('songTempo').value),
+                        tempo: document.getElementById('songTempo').value,
                         theme: document.getElementById('songTheme').value,
                         artist: document.getElementById('songArtist').value,
                         lyrics: document.getElementById('songLyrics').value
                     };
 
-                    if (editingSongId) {
-                        // Update existing song
-                        const song = mockData.songs.find(s => s.id === editingSongId);
-                        if (song) {
-                            Object.assign(song, songData);
-                            showAlert('Song updated successfully!');
+                    try {
+                        if (editingSongId) {
+                            // Update existing song
+                            await apiCall(`songs/${editingSongId}`, 'PUT', songData);
+                            showAlert('Song updated successfully!', 'success');
+                        } else {
+                            // Add new song
+                            await apiCall('songs', 'POST', songData);
+                            showAlert('Song added successfully!', 'success');
                         }
-                    } else {
-                        // Add new song
-                        const newSong = {
-                            id: Math.max(...mockData.songs.map(s => s.id)) + 1,
-                            ...songData
-                        };
-                        mockData.songs.push(newSong);
-                        showAlert('Song added successfully!');
+                        
+                        closeSongModal();
+                        loadSongs();
+                    } catch (error) {
+                        showAlert('Failed to save song: ' + error.message, 'error');
                     }
-                    
-                    closeSongModal();
-                    loadSongs();
                 });
             }
             
@@ -939,16 +1022,22 @@ window.onload = function() {
         });
 
         // Logout function
-function logout() {
-    if (confirm('Are you sure you want to logout?')) {
-        localStorage.removeItem('worship_token');
-        localStorage.removeItem('worship_user');
-        showAlert('Logged out successfully!');
-        setTimeout(() => {
-            window.location.href = 'index.html';
-        }, 1000);
-    }
-}
+        async function logout() {
+            if (confirm('Are you sure you want to logout?')) {
+                try {
+                    await apiCall('auth/logout', 'POST');
+                } catch (error) {
+                    console.error('Logout error:', error);
+                }
+                
+                localStorage.removeItem('worship_token');
+                localStorage.removeItem('worship_user');
+                showAlert('Logged out successfully!', 'success');
+                setTimeout(() => {
+                    window.location.href = 'index.html';
+                }, 1000);
+            }
+        }
 
         // Handle responsive sidebar
         window.addEventListener('resize', function() {

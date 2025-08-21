@@ -68,73 +68,43 @@
     <div class="container" id="app"></div>
 
     <script>
-        // Mock data
-        const mockUsers = [
-            { id: 1, username: 'admin', password: 'admin123', full_name: 'Administrator', role: 'admin' },
-            { id: 2, username: 'user', password: 'user123', full_name: 'User Test', role: 'user' }
-        ];
-
-        const mockSongs = [
-            { id: 1, title: 'Amazing Grace', song_key: 'G', tempo: 'slow', theme: 'penyembahan', artist: 'Traditional', lyrics: 'Amazing grace, how sweet the sound\nThat saved a wretch like me\nI once was lost, but now am found\nWas blind, but now I see' },
-            { id: 2, title: 'How Great is Our God', song_key: 'C', tempo: 'medium', theme: 'pujian', artist: 'Chris Tomlin', lyrics: 'The splendor of the King\nClothed in majesty\nLet all the earth rejoice\nAll the earth rejoice' },
-            { id: 3, title: 'Way Maker', song_key: 'D', tempo: 'slow', theme: 'penyembahan', artist: 'Sinach', lyrics: 'You are here, moving in our midst\nI worship You, I worship You\nYou are here, working in this place\nI worship You, I worship You' }
-        ];
-
-        let mockCompositions = [];
+        // API Configuration
+        const API_BASE_URL = window.location.origin + window.location.pathname.replace('index.html', 'api.php');
+        
         let authToken = localStorage.getItem('worship_token');
         let currentUser = null;
         let state = { currentTab: 'songs', selectedSongs: [], songs: [], compositions: [], filters: { search: '', key: '', tempo: '', theme: '' } };
 
-        // Mock API
-        function handleMockAPI(endpoint, method, data) {
-            return new Promise((resolve, reject) => {
-                setTimeout(() => {
-                    if (endpoint === 'auth/login') {
-                        const user = mockUsers.find(u => u.username === data.username && u.password === data.password);
-                        if (user) resolve({ token: 'mock-token-' + user.id, user: { id: user.id, username: user.username, full_name: user.full_name, role: user.role } });
-                        else reject(new Error('Username atau password salah'));
-                    } else if (endpoint === 'auth/register') {
-                        const existingUser = mockUsers.find(u => u.username === data.username);
-                        if (existingUser) reject(new Error('Username sudah digunakan'));
-                        else resolve({ message: 'Pendaftaran berhasil' });
-                    } else if (endpoint === 'songs' || endpoint.startsWith('songs?')) {
-                        let filteredSongs = [...mockSongs];
-                        if (endpoint.includes('?')) {
-                            const params = new URLSearchParams(endpoint.split('?')[1]);
-                            const search = params.get('search');
-                            if (search) filteredSongs = filteredSongs.filter(song => song.title.toLowerCase().includes(search.toLowerCase()));
-                        }
-                        if (method === 'POST') {
-                            const newSong = { id: mockSongs.length + 1, ...data };
-                            mockSongs.push(newSong);
-                            resolve(newSong);
-                        } else resolve(filteredSongs);
-                    } else if (endpoint === 'compositions') {
-                        if (method === 'POST') {
-                            const newComp = { id: mockCompositions.length + 1, ...data, created_at: new Date().toISOString(), song_count: data.songs.length };
-                            mockCompositions.push(newComp);
-                            resolve(newComp);
-                        } else resolve(mockCompositions);
-                    } else if (endpoint.startsWith('compositions/')) {
-                        const id = parseInt(endpoint.split('/')[1]);
-                        if (method === 'DELETE') {
-                            mockCompositions = mockCompositions.filter(c => c.id !== id);
-                            resolve({ message: 'Deleted' });
-                        } else {
-                            const comp = mockCompositions.find(c => c.id === id);
-                            if (comp) resolve(comp);
-                            else reject(new Error('Not found'));
-                        }
-                    }
-                }, 300);
-            });
-        }
-
+        // Real API calls
         async function apiCall(endpoint, method = 'GET', data = null) {
             try {
                 showLoading();
-                const result = await handleMockAPI(endpoint, method, data);
+                
+                const url = `${API_BASE_URL}/${endpoint}`;
+                const options = {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                };
+                
+                if (authToken) {
+                    options.headers['Authorization'] = `Bearer ${authToken}`;
+                }
+                
+                if (data && (method === 'POST' || method === 'PUT')) {
+                    options.body = JSON.stringify(data);
+                }
+                
+                const response = await fetch(url, options);
+                const result = await response.json();
+                
                 hideLoading();
+                
+                if (!response.ok) {
+                    throw new Error(result.error || 'Request failed');
+                }
+                
                 return result;
             } catch (error) {
                 hideLoading();
@@ -191,127 +161,112 @@
             } catch (error) {
                 showMessage(error.message, 'error');
             }
-			try {
-        const result = await apiCall('auth/login', 'POST', { username, password });
-        authToken = result.token;
-        currentUser = result.user;
-        localStorage.setItem('worship_token', authToken);
-        localStorage.setItem('worship_user', JSON.stringify(currentUser));
-        
-        showMessage('Login berhasil!', 'success');
-        
-        // Redirect admin ke admin.html
-        if (currentUser.role === 'admin') {
-            setTimeout(() => window.location.href = 'admin.html', 1000);
-        } else {
-            setTimeout(() => showMainApp(), 1000);
-        }
-    } catch (error) {
-        showMessage(error.message, 'error');
-    }
         }
 
         async function register() {
-            const username = document.getElementById('username').value.trim();
-            const password = document.getElementById('password').value;
-            const fullName = document.getElementById('fullName').value.trim();
+            const username = document.getElementById('reg-username').value.trim();
+            const password = document.getElementById('reg-password').value;
+            const fullName = document.getElementById('reg-fullname').value.trim();
+            const email = document.getElementById('reg-email').value.trim();
             
-            if (!username || !password) {
-                showMessage('Mohon isi username dan password', 'error');
+            if (!username || !password || !fullName || !email) {
+                showMessage('Mohon isi semua field', 'error');
                 return;
             }
             
             try {
-                await apiCall('auth/register', 'POST', { username, password, full_name: fullName });
+                await apiCall('auth/register', 'POST', { username, password, full_name: fullName, email });
                 showMessage('Pendaftaran berhasil! Silakan login.', 'success');
-                setTimeout(() => showLogin(), 2000);
+                setTimeout(() => showLoginForm(), 1000);
             } catch (error) {
                 showMessage(error.message, 'error');
             }
         }
 
-        function logout() {
-            authToken = null;
-            currentUser = null;
-            localStorage.removeItem('worship_token');
-            localStorage.removeItem('worship_user');
-            state.selectedSongs = [];
-            showLogin();
-        }
-
-        function showLogin() {
-            document.getElementById('app').innerHTML = `
-                <div class="auth-container">
-                    <div class="auth-card">
-                       
-                        <h1 class="auth-title">Worship Leader</h1>
-                        <p class="auth-subtitle">Masuk ke akun Anda</p>
-                        <div class="form-group">
-                            <label class="form-label">Username</label>
-                            <input type="text" class="form-input" id="username" placeholder="Masukkan username">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Password</label>
-                            <input type="password" class="form-input" id="password" placeholder="Masukkan password">
-                        </div>
-                        <button class="btn-primary" onclick="login()">Masuk</button>
-                        <div class="auth-switch">
-                            Belum punya akun? <a onclick="showRegister()">Daftar</a>
-                        </div>
-                    </div>
-                </div>
-            `;
-            document.addEventListener('keypress', e => { if (e.key === 'Enter') login(); });
-        }
-
-        function showRegister() {
-            document.getElementById('app').innerHTML = `
-                <div class="auth-container">
-                    <div class="auth-card">
-                        <h1 class="auth-title">Worship Leader</h1>
-                        <p class="auth-subtitle">Buat akun baru</p>
-                        <div class="form-group">
-                            <label class="form-label">Username *</label>
-                            <input type="text" class="form-input" id="username" placeholder="Masukkan username">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Password *</label>
-                            <input type="password" class="form-input" id="password" placeholder="Masukkan password">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Nama Lengkap</label>
-                            <input type="text" class="form-input" id="fullName" placeholder="Masukkan nama lengkap">
-                        </div>
-                        <button class="btn-primary" onclick="register()">Daftar</button>
-                        <div class="auth-switch">
-                            Sudah punya akun? <a onclick="showLogin()">Masuk</a>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-
-        async function showMainApp() {
-            let content = '';
-            switch(state.currentTab) {
-                case 'songs': await loadSongs(); content = renderSongsContent(); break;
-                case 'composer': content = renderComposer(); break;
-                case 'saved': await loadCompositions(); content = renderSavedContent(); break;
+        async function logout() {
+            try {
+                await apiCall('auth/logout', 'POST');
+            } catch (error) {
+                console.error('Logout error:', error);
             }
             
-            document.getElementById('app').innerHTML = `
-                <div class="header">
-                    <div class="header-title">Halo, ${currentUser.full_name || currentUser.username}</div>
-                    <button class="logout-btn" onclick="logout()">Keluar</button>
-                </div>
-                <div class="nav-tabs">
-                    <button class="nav-tab ${state.currentTab === 'songs' ? 'active' : ''}" onclick="switchTab('songs')">Lagu</button>
-                    <button class="nav-tab ${state.currentTab === 'composer' ? 'active' : ''}" onclick="switchTab('composer')">Komposisi</button>
-                    <button class="nav-tab ${state.currentTab === 'saved' ? 'active' : ''}" onclick="switchTab('saved')">Tersimpan</button>
-                </div>
-                <div class="content">${content}</div>
-                ${state.currentTab === 'songs' ? '<div class="fab" onclick="showAddSongModal()">+</div>' : ''}
-            `;
+            localStorage.removeItem('worship_token');
+            localStorage.removeItem('worship_user');
+            authToken = null;
+            currentUser = null;
+            showAuthForm();
+        }
+
+        async function loadSongs() {
+            try {
+                const params = new URLSearchParams();
+                if (state.filters.search) params.append('search', state.filters.search);
+                if (state.filters.key) params.append('key', state.filters.key);
+                if (state.filters.tempo) params.append('tempo', state.filters.tempo);
+                if (state.filters.theme) params.append('theme', state.filters.theme);
+                
+                const endpoint = params.toString() ? `songs?${params.toString()}` : 'songs';
+                state.songs = await apiCall(endpoint);
+                renderSongs();
+            } catch (error) {
+                showMessage('Gagal memuat lagu: ' + error.message, 'error');
+            }
+        }
+
+        async function loadCompositions() {
+            try {
+                state.compositions = await apiCall('compositions');
+                renderCompositions();
+            } catch (error) {
+                showMessage('Gagal memuat komposisi: ' + error.message, 'error');
+            }
+        }
+
+        async function saveComposition() {
+            const name = document.getElementById('comp-name').value.trim();
+            const theme = document.getElementById('comp-theme').value.trim();
+            const notes = document.getElementById('comp-notes').value.trim();
+            
+            if (!name || !theme || state.selectedSongs.length === 0) {
+                showMessage('Mohon isi nama, tema, dan pilih minimal satu lagu', 'error');
+                return;
+            }
+            
+            try {
+                const compositionData = {
+                    name: name,
+                    theme: theme,
+                    notes: notes,
+                    songs: state.selectedSongs.map(song => ({ id: song.id, notes: song.notes || '' }))
+                };
+                
+                await apiCall('compositions', 'POST', compositionData);
+                showMessage('Komposisi berhasil disimpan!', 'success');
+                
+                // Reset form
+                document.getElementById('comp-name').value = '';
+                document.getElementById('comp-theme').value = '';
+                document.getElementById('comp-notes').value = '';
+                state.selectedSongs = [];
+                renderSelectedSongs();
+                
+                // Reload compositions
+                loadCompositions();
+            } catch (error) {
+                showMessage('Gagal menyimpan komposisi: ' + error.message, 'error');
+            }
+        }
+
+        async function deleteComposition(id) {
+            if (!confirm('Yakin ingin menghapus komposisi ini?')) return;
+            
+            try {
+                await apiCall(`compositions/${id}`, 'DELETE');
+                showMessage('Komposisi berhasil dihapus!', 'success');
+                loadCompositions();
+            } catch (error) {
+                showMessage('Gagal menghapus komposisi: ' + error.message, 'error');
+            }
         }
 
         function renderSongsContent() {
@@ -331,51 +286,25 @@
             `;
         }
 
-        async function loadSongs() {
-            try {
-                const params = new URLSearchParams();
-                if (state.filters.search) params.append('search', state.filters.search);
-                const endpoint = params.toString() ? `songs?${params.toString()}` : 'songs';
-                state.songs = await apiCall(endpoint);
-                renderSongs();
-            } catch (error) {
-                state.songs = [];
-                renderSongs();
-            }
-        }
-
-        function renderSongs() {
-            const container = document.getElementById('songsList');
-            if (!container) return;
-            
-            if (state.songs.length === 0) {
-                container.innerHTML = '<div class="empty-state">Tidak ada lagu ditemukan</div>';
-                return;
-            }
-            
-            let html = '';
-            state.songs.forEach(song => {
-                html += `
-                    <div class="song-item" onclick="showSongDetail(${song.id})">
-                        <div class="song-title">${song.title}</div>
-                        <div class="song-meta">
-                            <span class="song-tag">Nada: ${song.song_key}</span>
-                            <span class="song-tag">${getTempoLabel(song.tempo)}</span>
-                            <span class="song-tag">${song.theme}</span>
-                        </div>
-                    </div>
-                `;
-            });
-            container.innerHTML = html;
-        }
-
         function renderComposer() {
             let html = `
                 <div class="composition-builder">
                     <h3>Buat Komposisi Ibadah</h3>
                     <div class="form-group">
                         <label class="form-label">Nama Komposisi</label>
-                        <input type="text" class="form-input" id="compositionName" placeholder="Contoh: Ibadah Minggu Pagi">
+                        <input type="text" class="form-input" id="comp-name" placeholder="Contoh: Ibadah Minggu Pagi">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Tema</label>
+                        <select class="form-input" id="comp-theme">
+                            <option value="penyembahan">Penyembahan</option>
+                            <option value="pujian">Pujian</option>
+                            <option value="penghiburan">Penghiburan</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Catatan (Opsional)</label>
+                        <textarea class="form-textarea" id="comp-notes" placeholder="Tambahkan catatan untuk komposisi"></textarea>
                     </div>
                     <div class="selected-songs">
                         <h4>Lagu Terpilih:</h4>
@@ -435,17 +364,7 @@
             return '<div id="compositionsList"></div>';
         }
 
-        async function loadCompositions() {
-            try {
-                state.compositions = await apiCall('compositions');
-                renderSaved();
-            } catch (error) {
-                state.compositions = [];
-                renderSaved();
-            }
-        }
-
-        function renderSaved() {
+        function renderCompositions() {
             const container = document.getElementById('compositionsList');
             if (!container) return;
             
@@ -599,33 +518,6 @@
             }
         }
 
-        async function saveComposition() {
-            const name = document.getElementById('compositionName').value.trim();
-            
-            if (!name) {
-                showMessage('Mohon isi nama komposisi', 'error');
-                return;
-            }
-            
-            if (state.selectedSongs.length === 0) {
-                showMessage('Mohon pilih minimal satu lagu', 'error');
-                return;
-            }
-            
-            try {
-                await apiCall('compositions', 'POST', {
-                    name,
-                    songs: state.selectedSongs.map(s => ({ id: s.id }))
-                });
-                
-                showMessage('Komposisi berhasil disimpan!', 'success');
-                state.selectedSongs = [];
-                switchTab('saved');
-            } catch (error) {
-                showMessage(error.message, 'error');
-            }
-        }
-
         async function addSongToComposition(id) {
             try {
                 const songs = await apiCall('songs');
@@ -686,21 +578,187 @@
             }
         }
 
-        async function deleteComposition(id) {
-            if (!confirm('Apakah Anda yakin ingin menghapus komposisi ini?')) return;
-            
-            try {
-                await apiCall(`compositions/${id}`, 'DELETE');
-                showMessage('Komposisi berhasil dihapus', 'success');
-                await loadCompositions();
-            } catch (error) {
-                showMessage(error.message, 'error');
-            }
-        }
-
         function closeModal() {
             const modals = document.querySelectorAll('.modal');
             modals.forEach(modal => modal.remove());
+        }
+
+        function showLoginForm() {
+            document.getElementById('app').innerHTML = `
+                <div class="auth-container">
+                    <div class="auth-card">
+                        <h1 class="auth-title">Worship Leader</h1>
+                        <p class="auth-subtitle">Masuk ke akun Anda</p>
+                        <div class="form-group">
+                            <label class="form-label">Username</label>
+                            <input type="text" class="form-input" id="username" placeholder="Masukkan username">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Password</label>
+                            <input type="password" class="form-input" id="password" placeholder="Masukkan password">
+                        </div>
+                        <button class="btn-primary" onclick="login()">Masuk</button>
+                        <div class="auth-switch">
+                            Belum punya akun? <a onclick="showRegisterForm()">Daftar</a>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.addEventListener('keypress', e => { if (e.key === 'Enter') login(); });
+        }
+
+        function showRegisterForm() {
+            document.getElementById('app').innerHTML = `
+                <div class="auth-container">
+                    <div class="auth-card">
+                        <h1 class="auth-title">Worship Leader</h1>
+                        <p class="auth-subtitle">Buat akun baru</p>
+                        <div class="form-group">
+                            <label class="form-label">Username *</label>
+                            <input type="text" class="form-input" id="reg-username" placeholder="Masukkan username">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Password *</label>
+                            <input type="password" class="form-input" id="reg-password" placeholder="Masukkan password">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Nama Lengkap *</label>
+                            <input type="text" class="form-input" id="reg-fullname" placeholder="Masukkan nama lengkap">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Email *</label>
+                            <input type="email" class="form-input" id="reg-email" placeholder="Masukkan email">
+                        </div>
+                        <button class="btn-primary" onclick="register()">Daftar</button>
+                        <div class="auth-switch">
+                            Sudah punya akun? <a onclick="showLoginForm()">Masuk</a>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function showAuthForm() {
+            showLoginForm();
+        }
+
+        async function showMainApp() {
+            let content = '';
+            switch(state.currentTab) {
+                case 'songs': await loadSongs(); content = renderSongsContent(); break;
+                case 'composer': content = renderComposer(); break;
+                case 'saved': await loadCompositions(); content = renderSavedContent(); break;
+            }
+            
+            document.getElementById('app').innerHTML = `
+                <div class="header">
+                    <div class="header-title">Halo, ${currentUser.full_name || currentUser.username}</div>
+                    <button class="logout-btn" onclick="logout()">Keluar</button>
+                </div>
+                <div class="nav-tabs">
+                    <button class="nav-tab ${state.currentTab === 'songs' ? 'active' : ''}" onclick="switchTab('songs')">Lagu</button>
+                    <button class="nav-tab ${state.currentTab === 'composer' ? 'active' : ''}" onclick="switchTab('composer')">Komposisi</button>
+                    <button class="nav-tab ${state.currentTab === 'saved' ? 'active' : ''}" onclick="switchTab('saved')">Tersimpan</button>
+                </div>
+                <div class="content">${content}</div>
+                ${state.currentTab === 'songs' ? '<div class="fab" onclick="showAddSongModal()">+</div>' : ''}
+            `;
+        }
+
+        function renderSongsContent() {
+            return `
+                <div class="demo-info">Demo: Gunakan admin/admin123 atau user/user123 untuk login</div>
+                <input type="text" class="search-input" placeholder="Cari lagu..." onkeyup="updateFilter('search', this.value)">
+                <div class="filter-container">
+                    <select class="filter-select" onchange="updateFilter('key', this.value)">
+                        <option value="">Semua Nada</option>
+                        <option value="C">C</option>
+                        <option value="D">D</option>
+                        <option value="E">E</option>
+                        <option value="F">F</option>
+                        <option value="G">G</option>
+                        <option value="A">A</option>
+                        <option value="B">B</option>
+                    </select>
+                    <select class="filter-select" onchange="updateFilter('tempo', this.value)">
+                        <option value="">Semua Tempo</option>
+                        <option value="slow">Lambat</option>
+                        <option value="medium">Sedang</option>
+                        <option value="fast">Cepat</option>
+                    </select>
+                    <select class="filter-select" onchange="updateFilter('theme', this.value)">
+                        <option value="">Semua Tema</option>
+                        <option value="penyembahan">Penyembahan</option>
+                        <option value="pujian">Pujian</option>
+                        <option value="penghiburan">Penghiburan</option>
+                    </select>
+                </div>
+                <div id="songsList"></div>
+            `;
+        }
+
+        function renderSongs() {
+            const container = document.getElementById('songsList');
+            if (!container) return;
+            
+            if (state.songs.length === 0) {
+                container.innerHTML = '<div class="empty-state">Tidak ada lagu ditemukan</div>';
+                return;
+            }
+            
+            let html = '';
+            state.songs.forEach(song => {
+                html += `
+                    <div class="song-item" onclick="showSongDetail(${song.id})">
+                        <div class="song-title">${song.title}</div>
+                        <div class="song-meta">
+                            <span class="song-tag">Nada: ${song.song_key}</span>
+                            <span class="song-tag">${getTempoLabel(song.tempo)}</span>
+                            <span class="song-tag">${song.theme}</span>
+                        </div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        function renderSavedContent() {
+            return `
+                <h2>Komposisi Tersimpan</h2>
+                <div id="compositionsList"></div>
+            `;
+        }
+
+        function renderSelectedSongs() {
+            const container = document.getElementById('selectedSongs');
+            if (!container) return;
+            
+            if (state.selectedSongs.length === 0) {
+                container.innerHTML = '<div class="empty-state">Belum ada lagu dipilih</div>';
+                return;
+            }
+            
+            let html = '';
+            state.selectedSongs.forEach(song => {
+                html += `
+                    <div class="selected-song-item">
+                        <div>
+                            <div class="song-title">${song.title}</div>
+                            <div class="song-meta">
+                                <span class="song-tag">${song.song_key}</span>
+                                <span class="song-tag">${getTempoLabel(song.tempo)}</span>
+                            </div>
+                        </div>
+                        <span class="remove-song" onclick="removeSongFromComposition(${song.id})">×</span>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        function getTempoLabel(tempo) {
+            const labels = { slow: 'Lambat', medium: 'Sedang', fast: 'Cepat' };
+            return labels[tempo] || tempo;
         }
 
         // Initialize app
@@ -715,10 +773,10 @@
                     showMainApp();
                 } catch (error) {
                     localStorage.removeItem('worship_user');
-                    showLogin();
+                    showAuthForm();
                 }
             } else {
-                showLogin();
+                showAuthForm();
             }
         };
     </script>
