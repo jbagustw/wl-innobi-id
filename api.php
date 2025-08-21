@@ -57,6 +57,9 @@ try {
 } catch (Exception $e) {
     http_response_code($e->getCode() ?: 500);
     echo json_encode(['error' => $e->getMessage()]);
+} catch (Error $e) {
+    http_response_code(500);
+    echo json_encode(['error' => 'Internal server error: ' . $e->getMessage()]);
 }
 
 // Authentication handlers
