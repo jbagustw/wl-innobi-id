@@ -728,12 +728,10 @@ async function apiCall(endpoint, method = 'GET', data = null) {
         }
 
         // Dashboard
-  async function loadDashboard() {
+ // Dashboard
+        async function loadDashboard() {
             try {
                 const stats = await apiCall('stats');
-                // Tanda kurung kurawal penutup untuk try {} hilang di sini.
-                // Kode berikut seharusnya berada di dalam blok try.
-
                 document.getElementById('content').innerHTML = `
                     <div class="stats-grid">
                         <div class="stat-card">
