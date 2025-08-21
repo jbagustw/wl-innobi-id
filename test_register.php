@@ -14,11 +14,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 try {
     // Test database connection
     require_once 'config.php';
-    require_once 'Database.php';
-    require_once 'Auth.php';
+    require_once 'database.php';
+    require_once 'auth.php';
     
-    $db = new Database();
-    $auth = new Auth($db);
+    $db = new database();
+    $auth = new auth($db);
     
     // Test registration with sample data
     $testData = [

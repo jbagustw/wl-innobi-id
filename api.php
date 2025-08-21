@@ -13,8 +13,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 // Configuration
 require_once 'config.php';
-require_once 'Database.php';
-require_once 'Auth.php';
+require_once 'database.php';
+require_once 'auth.php';
 
 // Initialize database and auth
 $db = new Database();

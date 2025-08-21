@@ -87,8 +87,8 @@ Pastikan web server dapat mengakses file PHP dan HTML.
 ```
 ├── api.php              # API endpoint utama
 ├── config.php           # Konfigurasi database
-├── Database.php         # Kelas koneksi database
-├── Auth.php             # Kelas autentikasi
+├── database.php         # Kelas koneksi database
+├── auth.php             # Kelas autentikasi
 ├── index.html           # Frontend user
 ├── admin.html           # Frontend admin
 ├── innobi_worship_leader.sql  # Struktur database
