@@ -258,7 +258,7 @@
             }
         }
 
-        async function saveComposition() {
+       async function saveComposition() {
             const name = document.getElementById('comp-name').value.trim();
             const theme = document.getElementById('comp-theme').value.trim();
             const notes = document.getElementById('comp-notes').value.trim();
@@ -273,6 +273,7 @@
                     name: name,
                     theme: theme,
                     notes: notes,
+                    user_id: currentUser.id, // Explicitly include user_id
                     songs: state.selectedSongs.map(song => ({ id: song.id, notes: song.notes || '' }))
                 };
                 
