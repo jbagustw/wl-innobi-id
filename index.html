@@ -346,6 +346,11 @@
                                 </div>
                             `).join('') : '<p>Tidak ada lagu dalam komposisi ini</p>'}
                         </div>
+                        <div style="margin-top: 20px; display: flex; gap: 10px;">
+                            <button class="btn-primary" style="background: #25D366;" onclick="shareToWhatsApp(${JSON.stringify(comp).replace(/"/g, '&quot;')})">
+                                📱 Share ke WhatsApp
+                            </button>
+                        </div>
                     </div>
                 `;
                 modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
@@ -354,6 +359,45 @@
                 console.error('Error viewing composition:', error);
                 showMessage('Gagal memuat detail komposisi', 'error');
             }
+        }
+
+        function shareToWhatsApp(composition) {
+            // Format pesan untuk WhatsApp
+            let message = `*🎵 KOMPOSISI IBADAH 🎵*\n\n`;
+            message += `*${composition.name}*\n`;
+            message += `📅 Tema: ${composition.theme}\n`;
+            
+            if (composition.notes) {
+                message += `📝 Catatan: ${composition.notes}\n`;
+            }
+            
+            message += `\n*DAFTAR LAGU:*\n`;
+            message += `━━━━━━━━━━━━━━━\n`;
+            
+            if (composition.songs && composition.songs.length > 0) {
+                composition.songs.forEach((song, index) => {
+                    message += `\n${index + 1}. *${song.title}*\n`;
+                    message += `   🎹 Nada: ${song.song_key}\n`;
+                    message += `   🎵 Tempo: ${getTempoLabel(song.tempo)}\n`;
+                    message += `   🏷️ Tema: ${song.theme}\n`;
+                    if (song.notes) {
+                        message += `   📌 Catatan: ${song.notes}\n`;
+                    }
+                });
+            }
+            
+            message += `\n━━━━━━━━━━━━━━━\n`;
+            message += `_Dibuat dengan Worship Leader Assistant_`;
+            
+            // Encode pesan untuk URL
+            const encodedMessage = encodeURIComponent(message);
+            
+            // Buka WhatsApp dengan pesan yang sudah disiapkan
+            // Gunakan wa.me untuk kompatibilitas yang lebih baik
+            const whatsappUrl = `https://wa.me/?text=${encodedMessage}`;
+            
+            // Buka di tab/window baru
+            window.open(whatsappUrl, '_blank');
         }
 
         // Rendering functions
