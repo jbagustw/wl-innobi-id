@@ -157,27 +157,35 @@
             }
         }
 
-        async function login() {
-            const username = document.getElementById('username').value.trim();
-            const password = document.getElementById('password').value;
-            
-            if (!username || !password) {
-                showMessage('Mohon isi username dan password', 'error');
-                return;
-            }
-            
-            try {
-                const result = await apiCall('auth/login', 'POST', { username, password });
-                authToken = result.token;
-                currentUser = result.user;
-                localStorage.setItem('worship_token', authToken);
-                localStorage.setItem('worship_user', JSON.stringify(currentUser));
-                showMessage('Login berhasil!', 'success');
-                setTimeout(() => showMainApp(), 1000);
-            } catch (error) {
-                showMessage(error.message, 'error');
-            }
-        }
+		async function login() {
+			const username = document.getElementById('username').value.trim();
+			const password = document.getElementById('password').value;
+			
+			if (!username || !password) {
+				showMessage('Mohon isi username dan password', 'error');
+				return;
+			}
+			
+			try {
+				const result = await apiCall('auth/login', 'POST', { username, password });
+				authToken = result.token;
+				currentUser = result.user;
+				localStorage.setItem('worship_token', authToken);
+				localStorage.setItem('worship_user', JSON.stringify(currentUser));
+				showMessage('Login berhasil!', 'success');
+				
+				// Redirect berdasarkan role
+				setTimeout(() => {
+					if (currentUser.role === 'admin') {
+						window.location.href = 'admin.html';
+					} else {
+						showMainApp();
+					}
+				}, 1000);
+			} catch (error) {
+				showMessage(error.message, 'error');
+			}
+		}
 
         async function register() {
             const username = document.getElementById('reg-username').value.trim();
