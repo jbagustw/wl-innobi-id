@@ -1,9 +1,6 @@
 <?php
-
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
-// api.php - Fixed API endpoint with simple routing
-error_reporting(E_ALL);
+// api.php - Fixed API endpoint with proper error handling
+error_reporting(0);
 ini_set('display_errors', 0);
 
 header('Content-Type: application/json');
@@ -25,7 +22,14 @@ require_once 'auth.php';
 // Error handler untuk menangkap semua error
 set_error_handler(function($errno, $errstr, $errfile, $errline) {
     http_response_code(500);
-    echo json_encode(['error' => 'Server error: ' . $errstr]);
+    echo json_encode(['error' => 'Server error: ' . $errstr, 'type' => 'error_handler']);
+    exit();
+});
+
+// Exception handler
+set_exception_handler(function($e) {
+    http_response_code(500);
+    echo json_encode(['error' => 'Server error: ' . $e->getMessage(), 'type' => 'exception']);
     exit();
 });
 
