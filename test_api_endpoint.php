@@ -6,7 +6,7 @@ echo "=== TESTING API ENDPOINTS ===\n\n";
 
 // Test 1: Test basic API endpoint
 echo "1. Testing basic API endpoint...\n";
-$test_url = "http://localhost/your-project/api.php/test";
+$test_url = "https://wl.innobi.id/api.php/test";
 echo "   URL: $test_url\n";
 
 $ch = curl_init();
@@ -22,7 +22,7 @@ echo "   Response: " . substr($response, 0, 200) . "...\n\n";
 
 // Test 2: Test auth endpoint
 echo "2. Testing auth endpoint...\n";
-$test_url = "http://localhost/your-project/api.php/auth/login";
+$test_url = "https://wl.innobi.id/api.php/auth/login";
 echo "   URL: $test_url\n";
 
 $post_data = json_encode([
