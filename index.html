@@ -38,7 +38,7 @@
         .filter-container { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
         .filter-select { flex: 1; min-width: 100px; padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
         .song-item, .composition-item { background: white; border: 1px solid #eee; border-radius: 10px; padding: 15px; margin-bottom: 10px; cursor: pointer; transition: all 0.3s; }
-        .song-item:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.1); transform: translateY(-2px); }
+        .song-item:hover, .composition-item:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.1); transform: translateY(-2px); }
         .song-title, .composition-title { font-size: 16px; font-weight: 600; color: #333; margin-bottom: 5px; }
         .song-meta { display: flex; gap: 15px; font-size: 12px; color: #666; flex-wrap: wrap; }
         .song-tag { background: #f0f0f0; padding: 2px 8px; border-radius: 4px; }
@@ -55,7 +55,6 @@
         .save-composition-btn { width: 100%; padding: 12px; background: #4CAF50; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; margin-top: 10px; }
         .fab { position: fixed; bottom: 20px; right: 20px; width: 56px; height: 56px; background: linear-gradient(135deg, #800000 0%, #FFD700 100%); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.2); transition: transform 0.3s; }
         .fab:hover { transform: scale(1.1); }
-        .demo-info { background: #e3f2fd; color: #1976d2; padding: 10px; border-radius: 6px; margin-bottom: 20px; font-size: 12px; text-align: center; }
         .action-buttons { display: flex; gap: 10px; margin-top: 10px; }
         .btn-small { padding: 5px 10px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; flex: 1; }
         .btn-view { background: #4CAF50; color: white; }
@@ -71,22 +70,23 @@
         // API Configuration
         const API_BASE_URL = window.location.origin + window.location.pathname.replace('index.html', 'api.php');
         
-        // Debug function to log API calls
-        function logApiCall(endpoint, method, data) {
-            console.log('API Call:', { endpoint, method, data, url: `${API_BASE_URL}/${endpoint}` });
-        }
-        
         let authToken = localStorage.getItem('worship_token');
         let currentUser = null;
-        let state = { currentTab: 'songs', selectedSongs: [], songs: [], compositions: [], filters: { search: '', key: '', tempo: '', theme: '' } };
+        let state = { 
+            currentTab: 'songs', 
+            selectedSongs: [], 
+            songs: [], 
+            compositions: [], 
+            filters: { search: '', key: '', tempo: '', theme: '' } 
+        };
 
-        // Real API calls
+        // API call function
         async function apiCall(endpoint, method = 'GET', data = null) {
             try {
                 showLoading();
                 
                 const url = `${API_BASE_URL}/${endpoint}`;
-                logApiCall(endpoint, method, data);
+                console.log('API Call:', { endpoint, method, data, url });
                 
                 const options = {
                     method: method,
@@ -105,12 +105,11 @@
                 
                 const response = await fetch(url, options);
                 
-                //Check if response is JSON
                 const contentType = response.headers.get('content-type');
                 if (!contentType || !contentType.includes('application/json')) {
                     const text = await response.text();
                     console.error('Non-JSON response:', text);
-                    throw new Error('Server returned non-JSON response. Please check server configuration.');
+                    throw new Error('Server returned non-JSON response');
                 }
                 
                 const result = await response.json();
@@ -157,35 +156,35 @@
             }
         }
 
-		async function login() {
-			const username = document.getElementById('username').value.trim();
-			const password = document.getElementById('password').value;
-			
-			if (!username || !password) {
-				showMessage('Mohon isi username dan password', 'error');
-				return;
-			}
-			
-			try {
-				const result = await apiCall('auth/login', 'POST', { username, password });
-				authToken = result.token;
-				currentUser = result.user;
-				localStorage.setItem('worship_token', authToken);
-				localStorage.setItem('worship_user', JSON.stringify(currentUser));
-				showMessage('Login berhasil!', 'success');
-				
-				// Redirect berdasarkan role
-				setTimeout(() => {
-					if (currentUser.role === 'admin') {
-						window.location.href = 'admin.html';
-					} else {
-						showMainApp();
-					}
-				}, 1000);
-			} catch (error) {
-				showMessage(error.message, 'error');
-			}
-		}
+        // Authentication functions
+        async function login() {
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+            
+            if (!username || !password) {
+                showMessage('Mohon isi username dan password', 'error');
+                return;
+            }
+            
+            try {
+                const result = await apiCall('auth/login', 'POST', { username, password });
+                authToken = result.token;
+                currentUser = result.user;
+                localStorage.setItem('worship_token', authToken);
+                localStorage.setItem('worship_user', JSON.stringify(currentUser));
+                showMessage('Login berhasil!', 'success');
+                
+                setTimeout(() => {
+                    if (currentUser.role === 'admin') {
+                        window.location.href = 'admin.html';
+                    } else {
+                        showMainApp();
+                    }
+                }, 1000);
+            } catch (error) {
+                showMessage(error.message, 'error');
+            }
+        }
 
         async function register() {
             const username = document.getElementById('reg-username').value.trim();
@@ -207,18 +206,6 @@
             }
         }
 
-        async function testApiConnection() {
-            try {
-                const result = await fetch(`${API_BASE_URL.replace('api.php', 'test_api.php')}`);
-                const data = await result.text();
-                console.log('Test API Response:', data);
-                showMessage('Check browser console for API test results', 'info');
-            } catch (error) {
-                console.error('Test API Error:', error);
-                showMessage('API test failed: ' + error.message, 'error');
-            }
-        }
-
         async function logout() {
             try {
                 await apiCall('auth/logout', 'POST');
@@ -233,6 +220,7 @@
             showAuthForm();
         }
 
+        // Data loading functions
         async function loadSongs() {
             try {
                 const params = new URLSearchParams();
@@ -242,23 +230,38 @@
                 if (state.filters.theme) params.append('theme', state.filters.theme);
                 
                 const endpoint = params.toString() ? `songs?${params.toString()}` : 'songs';
-                state.songs = await apiCall(endpoint);
+                const result = await apiCall(endpoint);
+                state.songs = result || [];
                 renderSongs();
             } catch (error) {
-                showMessage('Gagal memuat lagu: ' + error.message, 'error');
+                console.error('Error loading songs:', error);
+                state.songs = [];
+                renderSongs();
             }
         }
 
         async function loadCompositions() {
             try {
-                state.compositions = await apiCall('compositions');
-                renderCompositions();
+                console.log('Loading compositions for user:', currentUser);
+                const result = await apiCall('compositions');
+                console.log('Compositions API response:', result);
+                
+                state.compositions = Array.isArray(result) ? result : [];
+                
+                // Immediately render if we're on the saved tab
+                if (state.currentTab === 'saved') {
+                    renderCompositions();
+                }
             } catch (error) {
-                showMessage('Gagal memuat komposisi: ' + error.message, 'error');
+                console.error('Error loading compositions:', error);
+                state.compositions = [];
+                if (state.currentTab === 'saved') {
+                    renderCompositions();
+                }
             }
         }
 
-       async function saveComposition() {
+        async function saveComposition() {
             const name = document.getElementById('comp-name').value.trim();
             const theme = document.getElementById('comp-theme').value.trim();
             const notes = document.getElementById('comp-notes').value.trim();
@@ -273,8 +276,11 @@
                     name: name,
                     theme: theme,
                     notes: notes,
-                    user_id: currentUser.id, // Explicitly include user_id
-                    songs: state.selectedSongs.map(song => ({ id: song.id, notes: song.notes || '' }))
+                    songs: state.selectedSongs.map((song, index) => ({ 
+                        id: song.id, 
+                        notes: song.notes || '',
+                        order_position: index + 1
+                    }))
                 };
                 
                 await apiCall('compositions', 'POST', compositionData);
@@ -285,11 +291,14 @@
                 document.getElementById('comp-theme').value = '';
                 document.getElementById('comp-notes').value = '';
                 state.selectedSongs = [];
-                renderSelectedSongs();
                 
-                // Reload compositions
-                loadCompositions();
+                // Refresh the composer view
+                if (state.currentTab === 'composer') {
+                    document.getElementById('app').querySelector('.content').innerHTML = renderComposer();
+                    setTimeout(() => loadSongsForComposer(), 100);
+                }
             } catch (error) {
+                console.error('Save composition error:', error);
                 showMessage('Gagal menyimpan komposisi: ' + error.message, 'error');
             }
         }
@@ -300,27 +309,114 @@
             try {
                 await apiCall(`compositions/${id}`, 'DELETE');
                 showMessage('Komposisi berhasil dihapus!', 'success');
-                loadCompositions();
+                await loadCompositions();
             } catch (error) {
                 showMessage('Gagal menghapus komposisi: ' + error.message, 'error');
             }
         }
 
-        function renderSongsContent() {
-            return `
-                <input type="text" class="search-input" placeholder="Cari lagu..." value="${state.filters.search}" oninput="updateFilter('search', this.value)">
-                <div class="filter-container">
-                    <select class="filter-select" onchange="updateFilter('key', this.value)">
-                        <option value="">Semua Nada</option>
-                        <option value="C">C</option><option value="D">D</option><option value="E">E</option><option value="F">F</option><option value="G">G</option><option value="A">A</option><option value="B">B</option>
-                    </select>
-                    <select class="filter-select" onchange="updateFilter('tempo', this.value)">
-                        <option value="">Semua Tempo</option>
-                        <option value="slow">Lambat</option><option value="medium">Sedang</option><option value="fast">Cepat</option>
-                    </select>
-                </div>
-                <div id="songsList"></div>
-            `;
+        async function viewComposition(id) {
+            try {
+                const comp = await apiCall(`compositions/${id}`);
+                
+                if (!comp) {
+                    showMessage('Komposisi tidak ditemukan', 'error');
+                    return;
+                }
+                
+                const modal = document.createElement('div');
+                modal.className = 'modal show';
+                modal.innerHTML = `
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h2>${comp.name}</h2>
+                            <span class="modal-close" onclick="closeModal()">×</span>
+                        </div>
+                        <p style="color: #666; margin-bottom: 15px;">Tema: ${comp.theme}</p>
+                        ${comp.notes ? `<p style="color: #666; margin-bottom: 15px;">Catatan: ${comp.notes}</p>` : ''}
+                        <h3>Daftar Lagu:</h3>
+                        <div style="margin-top: 10px;">
+                            ${comp.songs && comp.songs.length > 0 ? comp.songs.map((song, index) => `
+                                <div style="padding: 10px; background: #f9f9f9; margin-bottom: 10px; border-radius: 6px;">
+                                    <strong>${index + 1}. ${song.title}</strong> (${song.song_key})
+                                    <div style="color: #666; font-size: 14px; margin-top: 5px;">
+                                        ${getTempoLabel(song.tempo)} | ${song.theme}
+                                        ${song.notes ? `<br>Catatan: ${song.notes}` : ''}
+                                    </div>
+                                </div>
+                            `).join('') : '<p>Tidak ada lagu dalam komposisi ini</p>'}
+                        </div>
+                    </div>
+                `;
+                modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+                document.body.appendChild(modal);
+            } catch (error) {
+                console.error('Error viewing composition:', error);
+                showMessage('Gagal memuat detail komposisi', 'error');
+            }
+        }
+
+        // Rendering functions
+        function renderSongs() {
+            const container = document.getElementById('songsList');
+            if (!container) return;
+            
+            if (!state.songs || state.songs.length === 0) {
+                container.innerHTML = '<div class="empty-state">Tidak ada lagu ditemukan</div>';
+                return;
+            }
+            
+            let html = '';
+            state.songs.forEach(song => {
+                html += `
+                    <div class="song-item" onclick="showSongDetail(${song.id})">
+                        <div class="song-title">${song.title}</div>
+                        <div class="song-meta">
+                            <span class="song-tag">Nada: ${song.song_key}</span>
+                            <span class="song-tag">${getTempoLabel(song.tempo)}</span>
+                            <span class="song-tag">${song.theme}</span>
+                        </div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        function renderCompositions() {
+            const container = document.getElementById('compositionsList');
+            if (!container) {
+                console.log('Compositions container not found');
+                return;
+            }
+            
+            console.log('Rendering compositions:', state.compositions);
+            
+            if (!state.compositions || state.compositions.length === 0) {
+                container.innerHTML = '<div class="empty-state">Belum ada komposisi tersimpan</div>';
+                return;
+            }
+            
+            let html = '';
+            state.compositions.forEach(comp => {
+                const createdDate = comp.created_at ? new Date(comp.created_at).toLocaleDateString('id-ID') : 'Tanggal tidak diketahui';
+                const songCount = comp.song_count || 0;
+                
+                html += `
+                    <div class="composition-item">
+                        <div class="composition-title">${comp.name || 'Komposisi Tanpa Nama'}</div>
+                        <div class="song-meta">
+                            <span class="song-tag">${songCount} lagu</span>
+                            <span class="song-tag">${createdDate}</span>
+                            ${comp.theme ? `<span class="song-tag">${comp.theme}</span>` : ''}
+                        </div>
+                        <div class="action-buttons">
+                            <button class="btn-small btn-view" onclick="viewComposition(${comp.id})">Lihat</button>
+                            <button class="btn-small btn-delete" onclick="deleteComposition(${comp.id})">Hapus</button>
+                        </div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
         }
 
         function renderComposer() {
@@ -393,45 +489,73 @@
                 });
                 container.innerHTML = html;
             } catch (error) {
-                console.error('Error loading songs:', error);
+                console.error('Error loading songs for composer:', error);
             }
         }
 
-        function renderSavedContent() {
-            return '<div id="compositionsList"></div>';
-        }
-
-        function renderCompositions() {
-            const container = document.getElementById('compositionsList');
-            if (!container) return;
+        // UI functions
+        async function showMainApp() {
+            let content = '';
             
-            if (state.compositions.length === 0) {
-                container.innerHTML = '<div class="empty-state">Belum ada komposisi tersimpan</div>';
-                return;
-            }
+            console.log('Showing main app, current tab:', state.currentTab);
             
-            let html = '';
-            state.compositions.forEach(comp => {
-                html += `
-                    <div class="composition-item">
-                        <div class="composition-title">${comp.name}</div>
-                        <div class="song-meta">
-                            <span class="song-tag">${comp.song_count} lagu</span>
-                            <span class="song-tag">${new Date(comp.created_at).toLocaleDateString('id-ID')}</span>
-                        </div>
-                        <div class="action-buttons">
-                            <button class="btn-small btn-view" onclick="viewComposition(${comp.id})">Lihat</button>
-                            <button class="btn-small btn-delete" onclick="deleteComposition(${comp.id})">Hapus</button>
-                        </div>
+            // Build content based on current tab
+            if (state.currentTab === 'songs') {
+                content = `
+                    <input type="text" class="search-input" placeholder="Cari lagu..." onkeyup="updateFilter('search', this.value)">
+                    <div class="filter-container">
+                        <select class="filter-select" onchange="updateFilter('key', this.value)">
+                            <option value="">Semua Nada</option>
+                            <option value="C">C</option><option value="D">D</option><option value="E">E</option>
+                            <option value="F">F</option><option value="G">G</option><option value="A">A</option><option value="B">B</option>
+                        </select>
+                        <select class="filter-select" onchange="updateFilter('tempo', this.value)">
+                            <option value="">Semua Tempo</option>
+                            <option value="slow">Lambat</option><option value="medium">Sedang</option><option value="fast">Cepat</option>
+                        </select>
+                        <select class="filter-select" onchange="updateFilter('theme', this.value)">
+                            <option value="">Semua Tema</option>
+                            <option value="penyembahan">Penyembahan</option><option value="pujian">Pujian</option>
+                            <option value="penghiburan">Penghiburan</option>
+                        </select>
                     </div>
+                    <div id="songsList"></div>
                 `;
-            });
-            container.innerHTML = html;
+            } else if (state.currentTab === 'composer') {
+                content = renderComposer();
+            } else if (state.currentTab === 'saved') {
+                content = `
+                    <h2>Komposisi Tersimpan</h2>
+                    <div id="compositionsList"></div>
+                `;
+            }
+            
+            // Update DOM
+            document.getElementById('app').innerHTML = `
+                <div class="header">
+                    <div class="header-title">Halo, ${currentUser.full_name || currentUser.username}</div>
+                    <button class="logout-btn" onclick="logout()">Keluar</button>
+                </div>
+                <div class="nav-tabs">
+                    <button class="nav-tab ${state.currentTab === 'songs' ? 'active' : ''}" onclick="switchTab('songs')">Lagu</button>
+                    <button class="nav-tab ${state.currentTab === 'composer' ? 'active' : ''}" onclick="switchTab('composer')">Komposisi</button>
+                    <button class="nav-tab ${state.currentTab === 'saved' ? 'active' : ''}" onclick="switchTab('saved')">Tersimpan</button>
+                </div>
+                <div class="content">${content}</div>
+                ${state.currentTab === 'songs' ? '<div class="fab" onclick="showAddSongModal()">+</div>' : ''}
+            `;
+            
+            // Load data after DOM is ready
+            if (state.currentTab === 'songs') {
+                await loadSongs();
+            } else if (state.currentTab === 'saved') {
+                await loadCompositions();
+            }
         }
 
-        function getTempoLabel(tempo) {
-            const labels = { 'slow': 'Lambat', 'medium': 'Sedang', 'fast': 'Cepat' };
-            return labels[tempo] || tempo;
+        function switchTab(tab) {
+            state.currentTab = tab;
+            showMainApp();
         }
 
         function updateFilter(type, value) {
@@ -442,11 +566,7 @@
             }
         }
 
-        function switchTab(tab) {
-            state.currentTab = tab;
-            showMainApp();
-        }
-
+        // Song management functions
         function showSongDetail(id) {
             const song = state.songs.find(s => s.id == id);
             if (!song) return;
@@ -464,7 +584,7 @@
                         <span class="song-tag">${getTempoLabel(song.tempo)}</span>
                         <span class="song-tag">${song.theme}</span>
                     </div>
-                    <div class="lyrics">${song.lyrics}</div>
+                    <div class="lyrics">${song.lyrics || 'Lirik tidak tersedia'}</div>
                     ${state.currentTab === 'composer' ? `<button class="btn-primary" onclick="addSongToComposition(${song.id}); closeModal();">Tambah ke Komposisi</button>` : ''}
                 </div>
             `;
@@ -557,7 +677,7 @@
 
         async function addSongToComposition(id) {
             try {
-                const songs = await apiCall('songs');
+                const songs = state.songs.length > 0 ? state.songs : await apiCall('songs');
                 const song = songs.find(s => s.id == id);
                 
                 if (song && !state.selectedSongs.find(s => s.id == id)) {
@@ -577,45 +697,15 @@
         function removeSongFromComposition(id) {
             const song = state.selectedSongs.find(s => s.id == id);
             state.selectedSongs = state.selectedSongs.filter(s => s.id != id);
-            showMainApp();
+            
+            // Refresh the composer view
+            if (state.currentTab === 'composer') {
+                document.getElementById('app').querySelector('.content').innerHTML = renderComposer();
+                setTimeout(() => loadSongsForComposer(), 100);
+            }
+            
             if (song) {
                 showMessage(`"${song.title}" dihapus dari komposisi`, 'success');
-            }
-        }
-
-        async function saveComposition() {
-            const name = document.getElementById('comp-name').value.trim();
-            const theme = document.getElementById('comp-theme').value.trim();
-            const notes = document.getElementById('comp-notes').value.trim();
-            
-            if (!name || !theme || state.selectedSongs.length === 0) {
-                showMessage('Mohon isi nama, tema, dan pilih minimal satu lagu', 'error');
-                return;
-            }
-            
-            try {
-                const compositionData = {
-                    name: name,
-                    theme: theme,
-                    notes: notes,
-                    user_id: currentUser.id, // Explicitly include user_id
-                    songs: state.selectedSongs.map(song => ({ id: song.id, notes: song.notes || '' }))
-                };
-                
-                await apiCall('compositions', 'POST', compositionData);
-                showMessage('Komposisi berhasil disimpan!', 'success');
-                
-                // Reset form
-                document.getElementById('comp-name').value = '';
-                document.getElementById('comp-theme').value = '';
-                document.getElementById('comp-notes').value = '';
-                state.selectedSongs = [];
-                renderSelectedSongs();
-                
-                // Reload compositions
-                loadCompositions();
-            } catch (error) {
-                showMessage('Gagal menyimpan komposisi: ' + error.message, 'error');
             }
         }
 
@@ -624,6 +714,12 @@
             modals.forEach(modal => modal.remove());
         }
 
+        function getTempoLabel(tempo) {
+            const labels = { slow: 'Lambat', medium: 'Sedang', fast: 'Cepat' };
+            return labels[tempo] || tempo;
+        }
+
+        // Auth UI functions
         function showLoginForm() {
             document.getElementById('app').innerHTML = `
                 <div class="auth-container">
@@ -645,7 +741,11 @@
                     </div>
                 </div>
             `;
-            document.addEventListener('keypress', e => { if (e.key === 'Enter') login(); });
+            
+            // Add enter key listener
+            document.getElementById('password').addEventListener('keypress', e => {
+                if (e.key === 'Enter') login();
+            });
         }
 
         function showRegisterForm() {
@@ -671,7 +771,6 @@
                             <input type="email" class="form-input" id="reg-email" placeholder="Masukkan email">
                         </div>
                         <button class="btn-primary" onclick="register()">Daftar</button>
-                        <button class="btn-primary" onclick="testApiConnection()" style="margin-top: 10px; background: #666;">Test API Connection</button>
                         <div class="auth-switch">
                             Sudah punya akun? <a onclick="showLoginForm()">Masuk</a>
                         </div>
@@ -684,125 +783,6 @@
             showLoginForm();
         }
 
-        async function showMainApp() {
-            let content = '';
-            switch(state.currentTab) {
-                case 'songs': await loadSongs(); content = renderSongsContent(); break;
-                case 'composer': content = renderComposer(); break;
-                case 'saved': await loadCompositions(); content = renderSavedContent(); break;
-            }
-            
-            document.getElementById('app').innerHTML = `
-                <div class="header">
-                    <div class="header-title">Halo, ${currentUser.full_name || currentUser.username}</div>
-                    <button class="logout-btn" onclick="logout()">Keluar</button>
-                </div>
-                <div class="nav-tabs">
-                    <button class="nav-tab ${state.currentTab === 'songs' ? 'active' : ''}" onclick="switchTab('songs')">Lagu</button>
-                    <button class="nav-tab ${state.currentTab === 'composer' ? 'active' : ''}" onclick="switchTab('composer')">Komposisi</button>
-                    <button class="nav-tab ${state.currentTab === 'saved' ? 'active' : ''}" onclick="switchTab('saved')">Tersimpan</button>
-                </div>
-                <div class="content">${content}</div>
-                ${state.currentTab === 'songs' ? '<div class="fab" onclick="showAddSongModal()">+</div>' : ''}
-            `;
-        }
-
-        function renderSongsContent() {
-            return `
-
-                <input type="text" class="search-input" placeholder="Cari lagu..." onkeyup="updateFilter('search', this.value)">
-                <div class="filter-container">
-                    <select class="filter-select" onchange="updateFilter('key', this.value)">
-                        <option value="">Semua Nada</option>
-                        <option value="C">C</option>
-                        <option value="D">D</option>
-                        <option value="E">E</option>
-                        <option value="F">F</option>
-                        <option value="G">G</option>
-                        <option value="A">A</option>
-                        <option value="B">B</option>
-                    </select>
-                    <select class="filter-select" onchange="updateFilter('tempo', this.value)">
-                        <option value="">Semua Tempo</option>
-                        <option value="slow">Lambat</option>
-                        <option value="medium">Sedang</option>
-                        <option value="fast">Cepat</option>
-                    </select>
-                    <select class="filter-select" onchange="updateFilter('theme', this.value)">
-                        <option value="">Semua Tema</option>
-                        <option value="penyembahan">Penyembahan</option>
-                        <option value="pujian">Pujian</option>
-                        <option value="penghiburan">Penghiburan</option>
-                    </select>
-                </div>
-                <div id="songsList"></div>
-            `;
-        }
-
-        function renderSongs() {
-            const container = document.getElementById('songsList');
-            if (!container) return;
-            
-            if (state.songs.length === 0) {
-                container.innerHTML = '<div class="empty-state">Tidak ada lagu ditemukan</div>';
-                return;
-            }
-            
-            let html = '';
-            state.songs.forEach(song => {
-                html += `
-                    <div class="song-item" onclick="showSongDetail(${song.id})">
-                        <div class="song-title">${song.title}</div>
-                        <div class="song-meta">
-                            <span class="song-tag">Nada: ${song.song_key}</span>
-                            <span class="song-tag">${getTempoLabel(song.tempo)}</span>
-                            <span class="song-tag">${song.theme}</span>
-                        </div>
-                    </div>
-                `;
-            });
-            container.innerHTML = html;
-        }
-
-        function renderSavedContent() {
-            return `
-                <h2>Komposisi Tersimpan</h2>
-                <div id="compositionsList"></div>
-            `;
-        }
-
-        function renderSelectedSongs() {
-            const container = document.getElementById('selectedSongs');
-            if (!container) return;
-            
-            if (state.selectedSongs.length === 0) {
-                container.innerHTML = '<div class="empty-state">Belum ada lagu dipilih</div>';
-                return;
-            }
-            
-            let html = '';
-            state.selectedSongs.forEach(song => {
-                html += `
-                    <div class="selected-song-item">
-                        <div>
-                            <div class="song-title">${song.title}</div>
-                            <div class="song-meta">
-                                <span class="song-tag">${song.song_key}</span>
-                                <span class="song-tag">${getTempoLabel(song.tempo)}</span>
-                            </div>
-                        </div>
-                        <span class="remove-song" onclick="removeSongFromComposition(${song.id})">×</span>
-                    </div>
-                `;
-            });
-            container.innerHTML = html;
-        }
-
-        function getTempoLabel(tempo) {
-            const labels = { slow: 'Lambat', medium: 'Sedang', fast: 'Cepat' };
-            return labels[tempo] || tempo;
-        }
-
         // Initialize app
         window.onload = async function() {
             const savedToken = localStorage.getItem('worship_token');
@@ -812,9 +792,18 @@
                 authToken = savedToken;
                 try {
                     currentUser = JSON.parse(savedUser);
+                    console.log('Logged in as:', currentUser);
+                    
+                    // Check if admin should redirect
+                    if (currentUser.role === 'admin' && !window.location.href.includes('admin.html')) {
+                        // Let them stay on regular page if they prefer
+                    }
+                    
                     showMainApp();
                 } catch (error) {
+                    console.error('Error parsing saved user:', error);
                     localStorage.removeItem('worship_user');
+                    localStorage.removeItem('worship_token');
                     showAuthForm();
                 }
             } else {
