@@ -619,7 +619,7 @@ async function apiCall(endpoint, method = 'GET', data = null) {
     } catch (error) {
         console.error('Admin API Error:', error);
         throw error;
-    
+    }
 }
 
         // Initialize
@@ -728,52 +728,54 @@ async function apiCall(endpoint, method = 'GET', data = null) {
         }
 
         // Dashboard
-        async function loadDashboard() {
+  async function loadDashboard() {
             try {
                 const stats = await apiCall('stats');
-            
-            document.getElementById('content').innerHTML = `
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-label">Total Users</div>
-                        <div class="stat-value">${stats.total_users}</div>
+                // Tanda kurung kurawal penutup untuk try {} hilang di sini.
+                // Kode berikut seharusnya berada di dalam blok try.
+
+                document.getElementById('content').innerHTML = `
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-label">Total Users</div>
+                            <div class="stat-value">${stats.total_users}</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Total Songs</div>
+                            <div class="stat-value">${stats.total_songs}</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Total Compositions</div>
+                            <div class="stat-value">${stats.user_compositions}</div>
+                        </div>
                     </div>
-                    <div class="stat-card">
-                        <div class="stat-label">Total Songs</div>
-                        <div class="stat-value">${stats.total_songs}</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-label">Total Compositions</div>
-                        <div class="stat-value">${stats.user_compositions}</div>
-                    </div>
-                </div>
-                
-                <div class="table-container">
-                    <div class="table-header">
-                        <h2 class="table-title">Recent Activities</h2>
-                    </div>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>User</th>
-                                <th>Action</th>
-                                <th>Type</th>
-                                <th>Time</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${stats.recent_activities.map(activity => `
+                    
+                    <div class="table-container">
+                        <div class="table-header">
+                            <h2 class="table-title">Recent Activities</h2>
+                        </div>
+                        <table>
+                            <thead>
                                 <tr>
-                                    <td>${activity.username || 'System'}</td>
-                                    <td>${activity.action}</td>
-                                    <td>${activity.entity_type || '-'}</td>
-                                    <td>${new Date(activity.created_at).toLocaleString('id-ID')}</td>
+                                    <th>User</th>
+                                    <th>Action</th>
+                                    <th>Type</th>
+                                    <th>Time</th>
                                 </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                </div>
-            `;
+                            </thead>
+                            <tbody>
+                                ${stats.recent_activities.map(activity => `
+                                    <tr>
+                                        <td>${activity.username || 'System'}</td>
+                                        <td>${activity.action}</td>
+                                        <td>${activity.entity_type || '-'}</td>
+                                        <td>${new Date(activity.created_at).toLocaleString('id-ID')}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
             } catch (error) {
                 showAlert('Gagal memuat activities: ' + error.message, 'error');
             }
