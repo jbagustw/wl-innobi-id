@@ -30,7 +30,7 @@ try {
     ]);
     
     // Test query
-    $stmt = $pdo->query("SELECT VERSION() as mysql_version, NOW() as current_time");
+    $stmt = $pdo->query("SELECT VERSION() as mysql_version, NOW() as 'current_time'");
     $db_info = $stmt->fetch();
     
     // Test if tables exist
