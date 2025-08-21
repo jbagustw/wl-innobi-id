@@ -1,5 +1,8 @@
 <?php
-// api.php - Main API endpoint
+// api.php - Fixed API endpoint
+error_reporting(E_ALL);
+ini_set('display_errors', 0);
+
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
@@ -16,20 +19,42 @@ require_once 'config.php';
 require_once 'database.php';
 require_once 'auth.php';
 
-// Initialize database and auth
-$db = new Database();
-$auth = new Auth($db);
-
-// Get request data
-$method = $_SERVER['REQUEST_METHOD'];
-$request = explode('/', trim($_SERVER['PATH_INFO'] ?? '', '/'));
-$input = json_decode(file_get_contents('php://input'), true);
-
-// Route the request
-$endpoint = $request[0] ?? '';
-$id = $request[1] ?? null;
+// Error handler untuk menangkap semua error
+set_error_handler(function($errno, $errstr, $errfile, $errline) {
+    http_response_code(500);
+    echo json_encode(['error' => 'Server error: ' . $errstr]);
+    exit();
+});
 
 try {
+    // Initialize database and auth
+    $db = new Database();
+    $auth = new Auth($db);
+
+    // Get request data - FIXED routing
+    $method = $_SERVER['REQUEST_METHOD'];
+    
+    // Parse URL - menggunakan query string untuk routing
+    $request_uri = $_SERVER['REQUEST_URI'];
+    $base_path = dirname($_SERVER['SCRIPT_NAME']);
+    $path = str_replace($base_path, '', $request_uri);
+    $path = parse_url($path, PHP_URL_PATH);
+    $path = trim($path, '/');
+    
+    // Jika tidak ada PATH_INFO, gunakan query string
+    if (empty($path) || $path === 'api.php') {
+        $path = isset($_GET['endpoint']) ? $_GET['endpoint'] : '';
+    } else {
+        $path = str_replace('api.php/', '', $path);
+    }
+    
+    $request = explode('/', $path);
+    $input = json_decode(file_get_contents('php://input'), true);
+
+    // Route the request
+    $endpoint = $request[0] ?? '';
+    $id = $request[1] ?? null;
+
     switch ($endpoint) {
         case 'auth':
             handleAuth($auth, $method, $request[1] ?? '', $input);
@@ -52,14 +77,15 @@ try {
             break;
             
         default:
-            throw new Exception('Invalid endpoint', 404);
+            throw new Exception('Invalid endpoint: ' . $endpoint, 404);
     }
 } catch (Exception $e) {
-    http_response_code($e->getCode() ?: 500);
-    echo json_encode(['error' => $e->getMessage()]);
+    $code = $e->getCode() ?: 500;
+    http_response_code($code);
+    echo json_encode(['error' => $e->getMessage(), 'code' => $code]);
 } catch (Error $e) {
     http_response_code(500);
-    echo json_encode(['error' => 'Internal server error: ' . $e->getMessage()]);
+    echo json_encode(['error' => 'Internal server error', 'details' => $e->getMessage()]);
 }
 
 // Authentication handlers
@@ -67,6 +93,9 @@ function handleAuth($auth, $method, $action, $input) {
     switch ($method) {
         case 'POST':
             if ($action === 'login') {
+                if (!isset($input['username']) || !isset($input['password'])) {
+                    throw new Exception('Username dan password harus diisi', 400);
+                }
                 $result = $auth->login($input['username'], $input['password']);
                 echo json_encode($result);
             } elseif ($action === 'register') {
@@ -80,6 +109,8 @@ function handleAuth($auth, $method, $action, $input) {
                 $token = getBearerToken();
                 $result = $auth->refreshToken($token);
                 echo json_encode($result);
+            } else {
+                throw new Exception('Invalid auth action', 400);
             }
             break;
             
@@ -88,6 +119,8 @@ function handleAuth($auth, $method, $action, $input) {
                 $token = getBearerToken();
                 $result = $auth->verifyToken($token);
                 echo json_encode($result);
+            } else {
+                throw new Exception('Invalid auth action', 400);
             }
             break;
             
@@ -107,7 +140,7 @@ function handleUsers($db, $auth, $method, $id, $input) {
                 if ($user['role'] !== 'admin' && $user['id'] != $id) {
                     throw new Exception('Unauthorized', 403);
                 }
-                $result = $db->query("SELECT id, username, full_name, email, role, created_at FROM users WHERE id = ?", [$id]);
+                $result = $db->query("SELECT id, username, full_name, email, role, created_at, is_active FROM users WHERE id = ?", [$id]);
                 echo json_encode($result[0] ?? null);
             } else {
                 // Get all users (admin only)
@@ -141,12 +174,14 @@ function handleUsers($db, $auth, $method, $id, $input) {
             }
             if (isset($input['is_active']) && $user['role'] === 'admin') {
                 $updates[] = "is_active = ?";
-                $params[] = $input['is_active'];
+                $params[] = $input['is_active'] ? 1 : 0;
             }
             
-            $params[] = $id;
-            $sql = "UPDATE users SET " . implode(', ', $updates) . " WHERE id = ?";
-            $db->execute($sql, $params);
+            if (!empty($updates)) {
+                $params[] = $id;
+                $sql = "UPDATE users SET " . implode(', ', $updates) . " WHERE id = ?";
+                $db->execute($sql, $params);
+            }
             
             echo json_encode(['success' => true]);
             break;
@@ -155,7 +190,7 @@ function handleUsers($db, $auth, $method, $id, $input) {
             if ($user['role'] !== 'admin') {
                 throw new Exception('Unauthorized', 403);
             }
-            $db->execute("UPDATE users SET is_active = FALSE WHERE id = ?", [$id]);
+            $db->execute("UPDATE users SET is_active = 0 WHERE id = ?", [$id]);
             echo json_encode(['success' => true]);
             break;
             
@@ -170,28 +205,28 @@ function handleSongs($db, $auth, $method, $id, $input) {
         case 'GET':
             if ($id) {
                 // Get specific song
-                $result = $db->query("SELECT * FROM songs WHERE id = ? AND is_active = TRUE", [$id]);
+                $result = $db->query("SELECT * FROM songs WHERE id = ? AND is_active = 1", [$id]);
                 echo json_encode($result[0] ?? null);
             } else {
                 // Get all songs with filters
-                $where = ["is_active = TRUE"];
+                $where = ["is_active = 1"];
                 $params = [];
                 
-                if (isset($_GET['search'])) {
+                if (isset($_GET['search']) && !empty($_GET['search'])) {
                     $where[] = "(title LIKE ? OR lyrics LIKE ?)";
                     $search = '%' . $_GET['search'] . '%';
                     $params[] = $search;
                     $params[] = $search;
                 }
-                if (isset($_GET['key'])) {
+                if (isset($_GET['key']) && !empty($_GET['key'])) {
                     $where[] = "song_key = ?";
                     $params[] = $_GET['key'];
                 }
-                if (isset($_GET['tempo'])) {
+                if (isset($_GET['tempo']) && !empty($_GET['tempo'])) {
                     $where[] = "tempo = ?";
                     $params[] = $_GET['tempo'];
                 }
-                if (isset($_GET['theme'])) {
+                if (isset($_GET['theme']) && !empty($_GET['theme'])) {
                     $where[] = "theme = ?";
                     $params[] = $_GET['theme'];
                 }
@@ -205,13 +240,18 @@ function handleSongs($db, $auth, $method, $id, $input) {
         case 'POST':
             $user = $auth->requireAuth();
             
+            // Validasi input
+            if (!isset($input['title']) || !isset($input['song_key']) || !isset($input['tempo']) || !isset($input['theme'])) {
+                throw new Exception('Data lagu tidak lengkap', 400);
+            }
+            
             $sql = "INSERT INTO songs (title, song_key, tempo, theme, lyrics, artist, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)";
             $params = [
                 $input['title'],
                 $input['song_key'],
                 $input['tempo'],
                 $input['theme'],
-                $input['lyrics'],
+                $input['lyrics'] ?? '',
                 $input['artist'] ?? null,
                 $user['id']
             ];
@@ -221,7 +261,7 @@ function handleSongs($db, $auth, $method, $id, $input) {
             // Log activity
             $db->execute(
                 "INSERT INTO activity_logs (user_id, action, entity_type, entity_id, details, ip_address) VALUES (?, ?, ?, ?, ?, ?)",
-                [$user['id'], 'create', 'song', $songId, json_encode(['title' => $input['title']]), $_SERVER['REMOTE_ADDR']]
+                [$user['id'], 'create', 'song', $songId, json_encode(['title' => $input['title']]), $_SERVER['REMOTE_ADDR'] ?? '']
             );
             
             echo json_encode(['id' => $songId, 'success' => true]);
@@ -240,15 +280,17 @@ function handleSongs($db, $auth, $method, $id, $input) {
                 }
             }
             
-            $params[] = $id;
-            $sql = "UPDATE songs SET " . implode(', ', $updates) . " WHERE id = ?";
-            $db->execute($sql, $params);
-            
-            // Log activity
-            $db->execute(
-                "INSERT INTO activity_logs (user_id, action, entity_type, entity_id, details, ip_address) VALUES (?, ?, ?, ?, ?, ?)",
-                [$user['id'], 'update', 'song', $id, json_encode($input), $_SERVER['REMOTE_ADDR']]
-            );
+            if (!empty($updates)) {
+                $params[] = $id;
+                $sql = "UPDATE songs SET " . implode(', ', $updates) . " WHERE id = ?";
+                $db->execute($sql, $params);
+                
+                // Log activity
+                $db->execute(
+                    "INSERT INTO activity_logs (user_id, action, entity_type, entity_id, details, ip_address) VALUES (?, ?, ?, ?, ?, ?)",
+                    [$user['id'], 'update', 'song', $id, json_encode($input), $_SERVER['REMOTE_ADDR'] ?? '']
+                );
+            }
             
             echo json_encode(['success' => true]);
             break;
@@ -259,12 +301,12 @@ function handleSongs($db, $auth, $method, $id, $input) {
                 throw new Exception('Unauthorized', 403);
             }
             
-            $db->execute("UPDATE songs SET is_active = FALSE WHERE id = ?", [$id]);
+            $db->execute("UPDATE songs SET is_active = 0 WHERE id = ?", [$id]);
             
             // Log activity
             $db->execute(
                 "INSERT INTO activity_logs (user_id, action, entity_type, entity_id, ip_address) VALUES (?, ?, ?, ?, ?)",
-                [$user['id'], 'delete', 'song', $id, $_SERVER['REMOTE_ADDR']]
+                [$user['id'], 'delete', 'song', $id, $_SERVER['REMOTE_ADDR'] ?? '']
             );
             
             echo json_encode(['success' => true]);
@@ -286,11 +328,12 @@ function handleCompositions($db, $auth, $method, $id, $input) {
                 $comp = $db->query(
                     "SELECT c.*, u.username FROM compositions c 
                      JOIN users u ON c.user_id = u.id 
-                     WHERE c.id = ? AND c.user_id = ?",
-                    [$id, $user['id']]
-                )[0] ?? null;
+                     WHERE c.id = ? AND (c.user_id = ? OR ?)",
+                    [$id, $user['id'], $user['role'] === 'admin' ? 1 : 0]
+                );
                 
-                if ($comp) {
+                if (!empty($comp)) {
+                    $comp = $comp[0];
                     $comp['songs'] = $db->query(
                         "SELECT s.*, cs.order_position, cs.notes 
                          FROM composition_songs cs 
@@ -299,20 +342,29 @@ function handleCompositions($db, $auth, $method, $id, $input) {
                          ORDER BY cs.order_position",
                         [$id]
                     );
+                    echo json_encode($comp);
+                } else {
+                    echo json_encode(null);
                 }
-                
-                echo json_encode($comp);
             } else {
-                // Get all compositions for user
-                $result = $db->query(
-                    "SELECT c.*, COUNT(cs.id) as song_count 
-                     FROM compositions c 
-                     LEFT JOIN composition_songs cs ON c.id = cs.composition_id 
-                     WHERE c.user_id = ? 
-                     GROUP BY c.id 
-                     ORDER BY c.created_at DESC",
-                    [$user['id']]
-                );
+                // Get all compositions for user (or all for admin)
+                if ($user['role'] === 'admin') {
+                    $sql = "SELECT c.*, u.username, COUNT(cs.id) as song_count 
+                           FROM compositions c 
+                           LEFT JOIN users u ON c.user_id = u.id
+                           LEFT JOIN composition_songs cs ON c.id = cs.composition_id 
+                           GROUP BY c.id 
+                           ORDER BY c.created_at DESC";
+                    $result = $db->query($sql);
+                } else {
+                    $sql = "SELECT c.*, COUNT(cs.id) as song_count 
+                           FROM compositions c 
+                           LEFT JOIN composition_songs cs ON c.id = cs.composition_id 
+                           WHERE c.user_id = ? 
+                           GROUP BY c.id 
+                           ORDER BY c.created_at DESC";
+                    $result = $db->query($sql, [$user['id']]);
+                }
                 echo json_encode($result);
             }
             break;
@@ -321,6 +373,11 @@ function handleCompositions($db, $auth, $method, $id, $input) {
             $db->beginTransaction();
             
             try {
+                // Validasi input
+                if (!isset($input['name']) || !isset($input['theme'])) {
+                    throw new Exception('Nama dan tema komposisi harus diisi', 400);
+                }
+                
                 // Create composition
                 $sql = "INSERT INTO compositions (user_id, name, theme, notes, event_date) VALUES (?, ?, ?, ?, ?)";
                 $compId = $db->execute($sql, [
@@ -346,7 +403,7 @@ function handleCompositions($db, $auth, $method, $id, $input) {
                 // Log activity
                 $db->execute(
                     "INSERT INTO activity_logs (user_id, action, entity_type, entity_id, details, ip_address) VALUES (?, ?, ?, ?, ?, ?)",
-                    [$user['id'], 'create', 'composition', $compId, json_encode(['name' => $input['name']]), $_SERVER['REMOTE_ADDR']]
+                    [$user['id'], 'create', 'composition', $compId, json_encode(['name' => $input['name']]), $_SERVER['REMOTE_ADDR'] ?? '']
                 );
                 
                 echo json_encode(['id' => $compId, 'success' => true]);
@@ -358,8 +415,8 @@ function handleCompositions($db, $auth, $method, $id, $input) {
             
         case 'PUT':
             // Verify ownership
-            $comp = $db->query("SELECT user_id FROM compositions WHERE id = ?", [$id])[0] ?? null;
-            if (!$comp || $comp['user_id'] != $user['id']) {
+            $comp = $db->query("SELECT user_id FROM compositions WHERE id = ?", [$id]);
+            if (empty($comp) || ($comp[0]['user_id'] != $user['id'] && $user['role'] !== 'admin')) {
                 throw new Exception('Unauthorized', 403);
             }
             
@@ -407,8 +464,8 @@ function handleCompositions($db, $auth, $method, $id, $input) {
             
         case 'DELETE':
             // Verify ownership
-            $comp = $db->query("SELECT user_id FROM compositions WHERE id = ?", [$id])[0] ?? null;
-            if (!$comp || $comp['user_id'] != $user['id']) {
+            $comp = $db->query("SELECT user_id FROM compositions WHERE id = ?", [$id]);
+            if (empty($comp) || ($comp[0]['user_id'] != $user['id'] && $user['role'] !== 'admin')) {
                 throw new Exception('Unauthorized', 403);
             }
             
@@ -417,7 +474,7 @@ function handleCompositions($db, $auth, $method, $id, $input) {
             // Log activity
             $db->execute(
                 "INSERT INTO activity_logs (user_id, action, entity_type, entity_id, ip_address) VALUES (?, ?, ?, ?, ?)",
-                [$user['id'], 'delete', 'composition', $id, $_SERVER['REMOTE_ADDR']]
+                [$user['id'], 'delete', 'composition', $id, $_SERVER['REMOTE_ADDR'] ?? '']
             );
             
             echo json_encode(['success' => true]);
@@ -437,8 +494,8 @@ function handleStats($db, $auth, $method) {
     }
     
     $stats = [
-        'total_songs' => $db->query("SELECT COUNT(*) as count FROM songs WHERE is_active = TRUE")[0]['count'],
-        'total_users' => $db->query("SELECT COUNT(*) as count FROM users WHERE is_active = TRUE")[0]['count'],
+        'total_songs' => $db->query("SELECT COUNT(*) as count FROM songs WHERE is_active = 1")[0]['count'],
+        'total_users' => $db->query("SELECT COUNT(*) as count FROM users WHERE is_active = 1")[0]['count'],
         'user_compositions' => $db->query("SELECT COUNT(*) as count FROM compositions WHERE user_id = ?", [$user['id']])[0]['count'],
         'recent_activities' => []
     ];
@@ -457,15 +514,32 @@ function handleStats($db, $auth, $method) {
 // Helper function to get Bearer token
 function getBearerToken() {
     $headers = getallheaders();
-    if (!isset($headers['Authorization'])) {
+    
+    // Check different header formats
+    $authHeader = $headers['Authorization'] ?? $headers['authorization'] ?? '';
+    
+    if (empty($authHeader)) {
         throw new Exception('No authorization header', 401);
     }
     
     $matches = [];
-    if (!preg_match('/Bearer\s+(.*)$/i', $headers['Authorization'], $matches)) {
+    if (!preg_match('/Bearer\s+(.*)$/i', $authHeader, $matches)) {
         throw new Exception('Invalid authorization header', 401);
     }
     
     return $matches[1];
+}
+
+// Get all headers (fallback for nginx)
+if (!function_exists('getallheaders')) {
+    function getallheaders() {
+        $headers = [];
+        foreach ($_SERVER as $name => $value) {
+            if (substr($name, 0, 5) == 'HTTP_') {
+                $headers[str_replace(' ', '-', ucwords(strtolower(str_replace('_', ' ', substr($name, 5)))))] = $value;
+            }
+        }
+        return $headers;
+    }
 }
 ?>
