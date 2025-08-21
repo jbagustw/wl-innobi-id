@@ -1,5 +1,5 @@
 <?php
-// api.php - Fixed API endpoint
+// api.php - Fixed API endpoint with simple routing
 error_reporting(E_ALL);
 ini_set('display_errors', 0);
 
@@ -31,33 +31,47 @@ try {
     $db = new Database();
     $auth = new Auth($db);
 
-    // Get request data - FIXED routing
+    // Get request data - SIMPLIFIED routing
     $method = $_SERVER['REQUEST_METHOD'];
     
-    // Parse URL - menggunakan query string untuk routing
+    // Parse URL - gunakan metode yang lebih sederhana
     $request_uri = $_SERVER['REQUEST_URI'];
-    $base_path = dirname($_SERVER['SCRIPT_NAME']);
-    $path = str_replace($base_path, '', $request_uri);
-    $path = parse_url($path, PHP_URL_PATH);
-    $path = trim($path, '/');
     
-    // Jika tidak ada PATH_INFO, gunakan query string
-    if (empty($path) || $path === 'api.php') {
-        $path = isset($_GET['endpoint']) ? $_GET['endpoint'] : '';
-    } else {
-        $path = str_replace('api.php/', '', $path);
+    // Hapus query string
+    $uri_parts = explode('?', $request_uri);
+    $path = $uri_parts[0];
+    
+    // Cari posisi api.php
+    $api_pos = strpos($path, 'api.php');
+    if ($api_pos !== false) {
+        // Ambil path setelah api.php
+        $path = substr($path, $api_pos + 7); // 7 = length of 'api.php'
     }
     
-    $request = explode('/', $path);
+    // Bersihkan slash
+    $path = trim($path, '/');
+    
+    // Jika kosong, coba dari query parameter
+    if (empty($path) && isset($_GET['endpoint'])) {
+        $path = $_GET['endpoint'];
+    }
+    
+    // Split path menjadi segments
+    $request = !empty($path) ? explode('/', $path) : [];
+    
+    // Get JSON input
     $input = json_decode(file_get_contents('php://input'), true);
 
     // Route the request
     $endpoint = $request[0] ?? '';
     $id = $request[1] ?? null;
+    
+    // Debug log (hapus di production)
+    // error_log("Endpoint: $endpoint, ID: $id, Path: $path");
 
     switch ($endpoint) {
         case 'auth':
-            handleAuth($auth, $method, $request[1] ?? '', $input);
+            handleAuth($auth, $method, $id ?? '', $input);
             break;
             
         case 'users':
@@ -74,6 +88,17 @@ try {
             
         case 'stats':
             handleStats($db, $auth, $method);
+            break;
+            
+        case 'test':
+            // Endpoint untuk testing
+            echo json_encode([
+                'success' => true,
+                'message' => 'API is working',
+                'endpoint' => $endpoint,
+                'path' => $path,
+                'method' => $method
+            ]);
             break;
             
         default:
@@ -110,7 +135,7 @@ function handleAuth($auth, $method, $action, $input) {
                 $result = $auth->refreshToken($token);
                 echo json_encode($result);
             } else {
-                throw new Exception('Invalid auth action', 400);
+                throw new Exception('Invalid auth action: ' . $action, 400);
             }
             break;
             
@@ -120,7 +145,7 @@ function handleAuth($auth, $method, $action, $input) {
                 $result = $auth->verifyToken($token);
                 echo json_encode($result);
             } else {
-                throw new Exception('Invalid auth action', 400);
+                echo json_encode(['endpoint' => 'auth', 'action' => $action]);
             }
             break;
             
@@ -513,7 +538,7 @@ function handleStats($db, $auth, $method) {
 
 // Helper function to get Bearer token
 function getBearerToken() {
-    $headers = getallheaders();
+    $headers = getAllHeaders();
     
     // Check different header formats
     $authHeader = $headers['Authorization'] ?? $headers['authorization'] ?? '';
@@ -531,15 +556,17 @@ function getBearerToken() {
 }
 
 // Get all headers (fallback for nginx)
-if (!function_exists('getallheaders')) {
-    function getallheaders() {
-        $headers = [];
-        foreach ($_SERVER as $name => $value) {
-            if (substr($name, 0, 5) == 'HTTP_') {
-                $headers[str_replace(' ', '-', ucwords(strtolower(str_replace('_', ' ', substr($name, 5)))))] = $value;
-            }
-        }
-        return $headers;
+function getAllHeaders() {
+    if (function_exists('getallheaders')) {
+        return getallheaders();
     }
+    
+    $headers = [];
+    foreach ($_SERVER as $name => $value) {
+        if (substr($name, 0, 5) == 'HTTP_') {
+            $headers[str_replace(' ', '-', ucwords(strtolower(str_replace('_', ' ', substr($name, 5)))))] = $value;
+        }
+    }
+    return $headers;
 }
 ?>

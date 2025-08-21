@@ -119,13 +119,37 @@ echo "<p>API URL: <code>$apiUrl</code></p>";
 
 // JavaScript test
 echo <<<HTML
+<button onclick="testAPI()" style="background:#FF9800; color:white; padding:10px 20px; border:none; border-radius:5px; cursor:pointer; margin-right:10px;">Test API Connection</button>
 <button onclick="testLogin()" style="background:#2196F3; color:white; padding:10px 20px; border:none; border-radius:5px; cursor:pointer;">Test Login API</button>
 <div id="result" style="margin-top:20px;"></div>
 
 <script>
+async function testAPI() {
+    const resultDiv = document.getElementById('result');
+    resultDiv.innerHTML = '<p>Testing API connection...</p>';
+    
+    try {
+        const response = await fetch('api.php/test', {
+            method: 'GET'
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            resultDiv.innerHTML = '<p style="color:green">✓ API Connection Success!</p><pre style="background:#f0f0f0; padding:10px;">' + 
+                                 JSON.stringify(data, null, 2) + '</pre>';
+        } else {
+            resultDiv.innerHTML = '<p style="color:red">✗ API Connection Failed</p><pre style="background:#ffe0e0; padding:10px;">' + 
+                                 JSON.stringify(data, null, 2) + '</pre>';
+        }
+    } catch (error) {
+        resultDiv.innerHTML = '<p style="color:red">✗ Error: ' + error.message + '</p>';
+    }
+}
+
 async function testLogin() {
     const resultDiv = document.getElementById('result');
-    resultDiv.innerHTML = '<p>Testing...</p>';
+    resultDiv.innerHTML = '<p>Testing login...</p>';
     
     try {
         const response = await fetch('api.php/auth/login', {
@@ -142,10 +166,10 @@ async function testLogin() {
         const data = await response.json();
         
         if (response.ok) {
-            resultDiv.innerHTML = '<p style="color:green">✓ API Test Success!</p><pre style="background:#f0f0f0; padding:10px;">' + 
+            resultDiv.innerHTML = '<p style="color:green">✓ Login Test Success!</p><pre style="background:#f0f0f0; padding:10px;">' + 
                                  JSON.stringify(data, null, 2) + '</pre>';
         } else {
-            resultDiv.innerHTML = '<p style="color:red">✗ API Test Failed</p><pre style="background:#ffe0e0; padding:10px;">' + 
+            resultDiv.innerHTML = '<p style="color:red">✗ Login Test Failed</p><pre style="background:#ffe0e0; padding:10px;">' + 
                                  JSON.stringify(data, null, 2) + '</pre>';
         }
     } catch (error) {
