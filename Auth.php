@@ -1,7 +1,7 @@
 <?php
 // auth.php - Kelas autentikasi
 require_once 'config.php';
-require_once 'Database.php';
+require_once 'database.php';
 
 class Auth {
     private $db;
