@@ -1,4 +1,7 @@
 <?php
+
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 // api.php - Fixed API endpoint with simple routing
 error_reporting(E_ALL);
 ini_set('display_errors', 0);
