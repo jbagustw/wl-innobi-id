@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Worship Leader</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f5f5f5;
+            min-height: 100vh;
+        }
+
+        .container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 250px;
+            background: linear-gradient(135deg, #800000 0%, #FFD700 100%);
+            color: white;
+            padding: 20px;
+        }
+
+        .sidebar-title {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .sidebar-menu {
+            list-style: none;
+        }
+
+        .sidebar-item {
+            padding: 12px 15px;
+            margin-bottom: 5px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .sidebar-item:hover {
+            background: rgba(255,255,255,0.1);
+        }
+
+        .sidebar-item.active {
+            background: rgba(255,255,255,0.2);
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            padding: 30px;
+        }
+
+        .header {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .page-title {
+            font-size: 28px;
+            color: #333;
+        }
+
+        .logout-btn {
+            background: #ff4444;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .logout-btn:hover {
+            background: #dd3333;
+        }
+
+        /* Stats Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        /* Tables */
+        .table-container {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .table-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .table-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .btn-add {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .btn-add:hover {
+            background: #45a049;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            background: #f9f9f9;
+            padding: 12px;
+            text-align: left;
+            border-bottom: 2px solid #ddd;
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+        }
+
+        tr:hover {
+            background: #f9f9f9;
+        }
+
+        .action-btn {
+            padding: 5px 10px;
+            margin-right: 5px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: opacity 0.3s;
+        }
+
+        .action-btn:hover {
+            opacity: 0.8;
+        }
+
+        .btn-edit {
+            background: #2196F3;
+            color: white;
+        }
+
+        .btn-delete {
+            background: #ff4444;
+            color: white;
+        }
+
+        .btn-activate {
+            background: #4CAF50;
+            color: white;
+        }
+
+        /* Search Box */
+        .search-box {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            width: 300px;
+            max-width: 100%;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-title {
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .modal-close {
+            font-size: 28px;
+            cursor: pointer;
+            color: #999;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-size: 14px;
+        }
+
+        .form-input, .form-textarea, .form-select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .form-textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .btn-save {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background 0.3s;
+        }
+
+        .btn-save:hover {
+            background: #45a049;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+
+        .badge {
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .badge-admin {
+            background: #ff6b6b;
+            color: white;
+        }
+
+        .badge-user {
+            background: #4dabf7;
+            color: white;
+        }
+
+        .badge-active {
+            background: #51cf66;
+            color: white;
+        }
+
+        .badge-inactive {
+            background: #868e96;
+            color: white;
+        }
+
+        .alert {
+            padding: 10px 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+            
+            .sidebar {
+                width: 100%;
+            }
+            
+            .sidebar-menu {
+                display: flex;
+                overflow-x: auto;
+                gap: 10px;
+            }
+            
+            .sidebar-item {
+                white-space: nowrap;
+                min-width: max-content;
+            }
+            
+            .table-header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .search-box {
+                width: 100%;
+            }
+            
+            table {
+                font-size: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <div class="sidebar-title">Admin Panel</div>
+            <ul class="sidebar-menu">
+                <li class="sidebar-item active" data-section="dashboard">📊 Dashboard</li>
+                <li class="sidebar-item" data-section="users">👥 Users</li>
+                <li class="sidebar-item" data-section="songs">🎵 Lagu</li>
+                <li class="sidebar-item" data-section="compositions">📝 Komposisi</li>
+                <li class="sidebar-item" data-section="activities">📜 Activity Log</li>
+            </ul>
+        </div>
+        
+        <div class="main-content">
+            <div class="header">
+                <h1 class="page-title" id="pageTitle">Dashboard</h1>
+                <div>
+                    <span id="adminName">Admin</span>
+                    <button class="logout-btn" onclick="logout()">Logout</button>
+                </div>
+            </div>
+            
+            <div id="alerts"></div>
+            <div id="content">
+                <!-- Content will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Add/Edit Song -->
+    <div id="songModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title" id="songModalTitle">Add Song</h3>
+                <span class="modal-close" onclick="closeSongModal()">&times;</span>
+            </div>
+            <form id="songForm">
+                <div class="form-group">
+                    <label class="form-label">Title *</label>
+                    <input type="text" class="form-input" id="songTitle" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Key *</label>
+                    <select class="form-select" id="songKey" required>
+                        <option value="">Select Key</option>
+                        <option value="C">C</option>
+                        <option value="C#">C#</option>
+                        <option value="D">D</option>
+                        <option value="D#">D#</option>
+                        <option value="E">E</option>
+                        <option value="F">F</option>
+                        <option value="F#">F#</option>
+                        <option value="G">G</option>
+                        <option value="G#">G#</option>
+                        <option value="A">A</option>
+                        <option value="A#">A#</option>
+                        <option value="B">B</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Tempo *</label>
+                    <input type="number" class="form-input" id="songTempo" min="60" max="200" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Theme *</label>
+                    <select class="form-select" id="songTheme" required>
+                        <option value="">Select Theme</option>
+                        <option value="Worship">Worship</option>
+                        <option value="Praise">Praise</option>
+                        <option value="Prayer">Prayer</option>
+                        <option value="Christmas">Christmas</option>
+                        <option value="Easter">Easter</option>
+                        <option value="Communion">Communion</option>
+                        <option value="Youth">Youth</option>
+                        <option value="Kids">Kids</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Artist</label>
+                    <input type="text" class="form-input" id="songArtist">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Lyrics</label>
+                    <textarea class="form-textarea" id="songLyrics" placeholder="Enter song lyrics..."></textarea>
+                </div>
+                <button type="submit" class="btn-save">Save Song</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+	
+	// Tambahkan di awal script admin.html
+function checkAdminAuth() {
+    const token = localStorage.getItem('worship_token');
+    const user = localStorage.getItem('worship_user');
+    
+    if (!token || !user) {
+        window.location.href = 'index.html';
+        return false;
+    }
+    
+    try {
+        const userData = JSON.parse(user);
+        if (userData.role !== 'admin') {
+            alert('Akses ditolak. Anda bukan admin.');
+            window.location.href = 'index.html';
+            return false;
+        }
+        return true;
+    } catch (error) {
+        localStorage.removeItem('worship_token');
+        localStorage.removeItem('worship_user');
+        window.location.href = 'index.html';
+        return false;
+    }
+}
+
+// Panggil saat halaman dimuat
+window.onload = function() {
+    if (!checkAdminAuth()) return;
+    init();
+};
+
+        // Mock data untuk demo
+        const mockData = {
+            stats: {
+                total_users: 25,
+                total_songs: 150,
+                user_compositions: 12,
+                recent_activities: [
+                    { username: 'john_doe', action: 'Added new song', entity_type: 'song', created_at: '2024-08-20T10:30:00Z' },
+                    { username: 'jane_smith', action: 'Created composition', entity_type: 'composition', created_at: '2024-08-20T09:15:00Z' },
+                    { username: 'admin', action: 'User registered', entity_type: 'user', created_at: '2024-08-19T16:45:00Z' },
+                    { username: 'worship_leader', action: 'Updated song', entity_type: 'song', created_at: '2024-08-19T14:20:00Z' }
+                ]
+            },
+            users: [
+                { id: 1, username: 'john_doe', full_name: 'John Doe', email: 'john@example.com', role: 'user', is_active: true, created_at: '2024-01-15T10:00:00Z' },
+                { id: 2, username: 'jane_smith', full_name: 'Jane Smith', email: 'jane@example.com', role: 'user', is_active: true, created_at: '2024-02-01T11:30:00Z' },
+                { id: 3, username: 'worship_leader', full_name: 'Worship Leader', email: 'leader@church.com', role: 'admin', is_active: true, created_at: '2024-01-01T00:00:00Z' },
+                { id: 4, username: 'old_user', full_name: 'Old User', email: 'old@example.com', role: 'user', is_active: false, created_at: '2023-12-01T15:00:00Z' }
+            ],
+            songs: [
+                { id: 1, title: 'Amazing Grace', song_key: 'G', tempo: 80, theme: 'Worship', artist: 'Traditional' },
+                { id: 2, title: 'How Great is Our God', song_key: 'C', tempo: 90, theme: 'Praise', artist: 'Chris Tomlin' },
+                { id: 3, title: 'Way Maker', song_key: 'D', tempo: 75, theme: 'Worship', artist: 'Sinach' },
+                { id: 4, title: 'Reckless Love', song_key: 'A', tempo: 85, theme: 'Worship', artist: 'Cory Asbury' },
+                { id: 5, title: 'Good Good Father', song_key: 'F', tempo: 70, theme: 'Worship', artist: 'Chris Tomlin' }
+            ]
+        };
+
+        let currentUser = { id: 1, username: 'admin', full_name: 'Administrator', role: 'admin' };
+        let currentSection = 'dashboard';
+        let editingSongId = null;
+
+        // Initialize
+        function init() {
+            document.getElementById('adminName').textContent = currentUser.full_name || currentUser.username;
+            
+            // Add event listeners to sidebar items
+            document.querySelectorAll('.sidebar-item').forEach(item => {
+                item.addEventListener('click', function() {
+                    const section = this.getAttribute('data-section');
+                    showSection(section, this);
+                });
+            });
+            
+            // Show dashboard by default
+            showSection('dashboard');
+        }
+
+        // Show alert message
+        function showAlert(message, type = 'success') {
+            const alertDiv = document.getElementById('alerts');
+            alertDiv.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+            
+            setTimeout(() => {
+                alertDiv.innerHTML = '';
+            }, 3000);
+        }
+
+        // Show Section
+        function showSection(section, clickedElement = null) {
+            currentSection = section;
+            
+            // Update sidebar active state
+            document.querySelectorAll('.sidebar-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            
+            if (clickedElement) {
+                clickedElement.classList.add('active');
+            } else {
+                const activeItem = document.querySelector(`[data-section="${section}"]`);
+                if (activeItem) {
+                    activeItem.classList.add('active');
+                }
+            }
+            
+            // Update page title
+            const titles = {
+                dashboard: 'Dashboard',
+                users: 'User Management',
+                songs: 'Song Management',
+                compositions: 'Compositions',
+                activities: 'Activity Log'
+            };
+            document.getElementById('pageTitle').textContent = titles[section];
+            
+            // Load content
+            const content = document.getElementById('content');
+            content.innerHTML = '<div class="loading">Loading...</div>';
+            
+            setTimeout(() => {
+                switch(section) {
+                    case 'dashboard':
+                        loadDashboard();
+                        break;
+                    case 'users':
+                        loadUsers();
+                        break;
+                    case 'songs':
+                        loadSongs();
+                        break;
+                    case 'compositions':
+                        loadCompositions();
+                        break;
+                    case 'activities':
+                        loadActivities();
+                        break;
+                }
+            }, 200);
+        }
+
+        // Dashboard
+        function loadDashboard() {
+            const stats = mockData.stats;
+            
+            document.getElementById('content').innerHTML = `
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-label">Total Users</div>
+                        <div class="stat-value">${stats.total_users}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Total Songs</div>
+                        <div class="stat-value">${stats.total_songs}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Total Compositions</div>
+                        <div class="stat-value">${stats.user_compositions}</div>
+                    </div>
+                </div>
+                
+                <div class="table-container">
+                    <div class="table-header">
+                        <h2 class="table-title">Recent Activities</h2>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>User</th>
+                                <th>Action</th>
+                                <th>Type</th>
+                                <th>Time</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${stats.recent_activities.map(activity => `
+                                <tr>
+                                    <td>${activity.username || 'System'}</td>
+                                    <td>${activity.action}</td>
+                                    <td>${activity.entity_type || '-'}</td>
+                                    <td>${new Date(activity.created_at).toLocaleString('id-ID')}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        // Users
+        function loadUsers() {
+            const users = mockData.users;
+            
+            document.getElementById('content').innerHTML = `
+                <div class="table-container">
+                    <div class="table-header">
+                        <h2 class="table-title">Users</h2>
+                        <input type="text" class="search-box" placeholder="Search users..." onkeyup="filterTable(this, 'usersTable')">
+                    </div>
+                    <table id="usersTable">
+                        <thead>
+                            <tr>
+                                <th>Username</th>
+                                <th>Full Name</th>
+                                <th>Email</th>
+                                <th>Role</th>
+                                <th>Status</th>
+                                <th>Created</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${users.map(user => `
+                                <tr>
+                                    <td>${user.username}</td>
+                                    <td>${user.full_name || '-'}</td>
+                                    <td>${user.email || '-'}</td>
+                                    <td><span class="badge badge-${user.role}">${user.role}</span></td>
+                                    <td><span class="badge badge-${user.is_active ? 'active' : 'inactive'}">${user.is_active ? 'Active' : 'Inactive'}</span></td>
+                                    <td>${new Date(user.created_at).toLocaleDateString('id-ID')}</td>
+                                    <td>
+                                        ${user.is_active ? 
+                                            `<button class="action-btn btn-delete" onclick="toggleUserStatus(${user.id}, false)">Deactivate</button>` :
+                                            `<button class="action-btn btn-activate" onclick="toggleUserStatus(${user.id}, true)">Activate</button>`
+                                        }
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        // Songs
+        function loadSongs() {
+            const songs = mockData.songs;
+            
+            document.getElementById('content').innerHTML = `
+                <div class="table-container">
+                    <div class="table-header">
+                        <h2 class="table-title">Songs</h2>
+                        <div>
+                            <input type="text" class="search-box" placeholder="Search songs..." onkeyup="filterTable(this, 'songsTable')" style="margin-right: 10px;">
+                            <button class="btn-add" onclick="showAddSongModal()">Add Song</button>
+                        </div>
+                    </div>
+                    <table id="songsTable">
+                        <thead>
+                            <tr>
+                                <th>Title</th>
+                                <th>Key</th>
+                                <th>Tempo</th>
+                                <th>Theme</th>
+                                <th>Artist</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${songs.map(song => `
+                                <tr>
+                                    <td>${song.title}</td>
+                                    <td>${song.song_key}</td>
+                                    <td>${song.tempo}</td>
+                                    <td>${song.theme}</td>
+                                    <td>${song.artist || '-'}</td>
+                                    <td>
+                                        <button class="action-btn btn-edit" onclick="editSong(${song.id})">Edit</button>
+                                        <button class="action-btn btn-delete" onclick="deleteSong(${song.id})">Delete</button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        // Compositions
+        function loadCompositions() {
+            document.getElementById('content').innerHTML = `
+                <div class="no-data">
+                    <h3>Compositions</h3>
+                    <p>No compositions available yet.</p>
+                </div>
+            `;
+        }
+
+        // Activities
+        function loadActivities() {
+            const activities = mockData.stats.recent_activities;
+            
+            document.getElementById('content').innerHTML = `
+                <div class="table-container">
+                    <div class="table-header">
+                        <h2 class="table-title">All Activities</h2>
+                        <input type="text" class="search-box" placeholder="Search activities..." onkeyup="filterTable(this, 'activitiesTable')">
+                    </div>
+                    <table id="activitiesTable">
+                        <thead>
+                            <tr>
+                                <th>User</th>
+                                <th>Action</th>
+                                <th>Type</th>
+                                <th>Time</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${activities.map(activity => `
+                                <tr>
+                                    <td>${activity.username || 'System'}</td>
+                                    <td>${activity.action}</td>
+                                    <td>${activity.entity_type || '-'}</td>
+                                    <td>${new Date(activity.created_at).toLocaleString('id-ID')}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        // Filter table
+        function filterTable(input, tableId) {
+            const filter = input.value.toLowerCase();
+            const table = document.getElementById(tableId);
+            const rows = table.getElementsByTagName('tr');
+
+            for (let i = 1; i < rows.length; i++) {
+                let showRow = false;
+                const cells = rows[i].getElementsByTagName('td');
+                
+                for (let j = 0; j < cells.length - 1; j++) { // -1 to exclude actions column
+                    if (cells[j].textContent.toLowerCase().includes(filter)) {
+                        showRow = true;
+                        break;
+                    }
+                }
+                
+                rows[i].style.display = showRow ? '' : 'none';
+            }
+        }
+
+        // User management
+        function toggleUserStatus(userId, activate) {
+            const action = activate ? 'activated' : 'deactivated';
+            
+            if (confirm(`Are you sure you want to ${activate ? 'activate' : 'deactivate'} this user?`)) {
+                // Update mock data
+                const user = mockData.users.find(u => u.id === userId);
+                if (user) {
+                    user.is_active = activate;
+                }
+                
+                showAlert(`User ${action} successfully!`);
+                loadUsers();
+            }
+        }
+
+        // Song management
+        function showAddSongModal() {
+            editingSongId = null;
+            document.getElementById('songModalTitle').textContent = 'Add Song';
+            document.getElementById('songForm').reset();
+            document.getElementById('songModal').classList.add('show');
+        }
+
+        function editSong(songId) {
+            editingSongId = songId;
+            const song = mockData.songs.find(s => s.id === songId);
+            
+            if (song) {
+                document.getElementById('songModalTitle').textContent = 'Edit Song';
+                document.getElementById('songTitle').value = song.title;
+                document.getElementById('songKey').value = song.song_key;
+                document.getElementById('songTempo').value = song.tempo;
+                document.getElementById('songTheme').value = song.theme;
+                document.getElementById('songArtist').value = song.artist || '';
+                document.getElementById('songLyrics').value = song.lyrics || '';
+                document.getElementById('songModal').classList.add('show');
+            }
+        }
+
+        function deleteSong(songId) {
+            if (confirm('Are you sure you want to delete this song?')) {
+                // Remove from mock data
+                const index = mockData.songs.findIndex(s => s.id === songId);
+                if (index !== -1) {
+                    mockData.songs.splice(index, 1);
+                }
+                
+                showAlert('Song deleted successfully!');
+                loadSongs();
+            }
+        }
+
+        function closeSongModal() {
+            document.getElementById('songModal').classList.remove('show');
+        }
+
+        // Song form submission
+        document.addEventListener('DOMContentLoaded', function() {
+            const songForm = document.getElementById('songForm');
+            if (songForm) {
+                songForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    
+                    const songData = {
+                        title: document.getElementById('songTitle').value,
+                        song_key: document.getElementById('songKey').value,
+                        tempo: parseInt(document.getElementById('songTempo').value),
+                        theme: document.getElementById('songTheme').value,
+                        artist: document.getElementById('songArtist').value,
+                        lyrics: document.getElementById('songLyrics').value
+                    };
+
+                    if (editingSongId) {
+                        // Update existing song
+                        const song = mockData.songs.find(s => s.id === editingSongId);
+                        if (song) {
+                            Object.assign(song, songData);
+                            showAlert('Song updated successfully!');
+                        }
+                    } else {
+                        // Add new song
+                        const newSong = {
+                            id: Math.max(...mockData.songs.map(s => s.id)) + 1,
+                            ...songData
+                        };
+                        mockData.songs.push(newSong);
+                        showAlert('Song added successfully!');
+                    }
+                    
+                    closeSongModal();
+                    loadSongs();
+                });
+            }
+            
+            // Close modal when clicking outside
+            document.getElementById('songModal').addEventListener('click', function(e) {
+                if (e.target === this) {
+                    closeSongModal();
+                }
+            });
+            
+            // Initialize the app
+            init();
+        });
+
+        // Logout function
+function logout() {
+    if (confirm('Are you sure you want to logout?')) {
+        localStorage.removeItem('worship_token');
+        localStorage.removeItem('worship_user');
+        showAlert('Logged out successfully!');
+        setTimeout(() => {
+            window.location.href = 'index.html';
+        }, 1000);
+    }
+}
+
+        // Handle responsive sidebar
+        window.addEventListener('resize', function() {
+            // Add responsive behavior if needed
+        });
+    </script>
+</body>
+</html>
+                

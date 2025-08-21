@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Worship Leader Assistant</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #800000 0%, #FFD700 100%); min-height: 100vh; color: #333; }
+        .container { max-width: 428px; margin: 0 auto; background: white; min-height: 100vh; box-shadow: 0 0 20px rgba(0,0,0,0.1); }
+        .auth-container { padding: 40px 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; background: linear-gradient(135deg, #800000 0%, #FFD700 100%); }
+        .auth-card { background: white; padding: 30px; border-radius: 20px; width: 100%; max-width: 380px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+        .auth-title { text-align: center; color: #800000; margin-bottom: 10px; font-size: 28px; }
+        .auth-subtitle { text-align: center; color: #666; margin-bottom: 30px; font-size: 14px; }
+        .form-group { margin-bottom: 20px; }
+        .form-label { display: block; margin-bottom: 5px; color: #555; font-size: 14px; }
+        .form-input, .form-textarea { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; transition: border-color 0.3s; }
+        .form-input:focus, .form-textarea:focus { outline: none; border-color: #800000; }
+        .btn-primary { width: 100%; padding: 12px; background: linear-gradient(135deg, #800000 0%, #FFD700 100%); color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; transition: transform 0.2s; }
+        .btn-primary:hover { transform: translateY(-2px); }
+        .auth-switch { text-align: center; margin-top: 20px; color: #800000; font-size: 14px; }
+        .auth-switch a { color: #667eea; text-decoration: none; font-weight: 600; cursor: pointer; }
+        .spinner { display: inline-block; width: 20px; height: 20px; border: 3px solid rgba(255,255,255,0.3); border-radius: 50%; border-top-color: white; animation: spin 1s ease-in-out infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loading-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 9999; }
+        .loading-content { background: white; padding: 20px; border-radius: 10px; text-align: center; }
+        .message { padding: 12px; border-radius: 8px; margin-bottom: 20px; font-size: 14px; }
+        .message.error { background: #fee; color: #c33; border: 1px solid #fcc; }
+        .message.success { background: #efe; color: #3c3; border: 1px solid #cfc; }
+        .header { background: linear-gradient(135deg, #800000 0%, #FFD700 100%); color: white; padding: 20px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .header-title { font-size: 20px; font-weight: 600; }
+        .logout-btn { background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3); padding: 8px 15px; border-radius: 6px; cursor: pointer; font-size: 14px; }
+        .nav-tabs { display: flex; background: white; border-bottom: 1px solid #eee; position: sticky; top: 68px; z-index: 99; }
+        .nav-tab { flex: 1; padding: 15px; text-align: center; cursor: pointer; background: white; border: none; color: #666; font-size: 14px; transition: all 0.3s; }
+        .nav-tab.active { color: #800000; border-bottom: 3px solid #FFD700; font-weight: 600; }
+        .content { padding: 20px; min-height: calc(100vh - 128px); }
+        .search-input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; margin-bottom: 20px; }
+        .filter-container { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+        .filter-select { flex: 1; min-width: 100px; padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
+        .song-item, .composition-item { background: white; border: 1px solid #eee; border-radius: 10px; padding: 15px; margin-bottom: 10px; cursor: pointer; transition: all 0.3s; }
+        .song-item:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.1); transform: translateY(-2px); }
+        .song-title, .composition-title { font-size: 16px; font-weight: 600; color: #333; margin-bottom: 5px; }
+        .song-meta { display: flex; gap: 15px; font-size: 12px; color: #666; flex-wrap: wrap; }
+        .song-tag { background: #f0f0f0; padding: 2px 8px; border-radius: 4px; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
+        .modal.show { display: flex; }
+        .modal-content { background: white; padding: 20px; border-radius: 15px; width: 90%; max-width: 400px; max-height: 80vh; overflow-y: auto; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .modal-close { font-size: 24px; cursor: pointer; color: #999; }
+        .lyrics { white-space: pre-wrap; line-height: 1.8; color: #555; margin: 15px 0; }
+        .composition-builder { background: #f9f9f9; border-radius: 10px; padding: 20px; margin-bottom: 20px; }
+        .selected-songs { margin-bottom: 15px; }
+        .selected-song-item { background: white; padding: 10px; border-radius: 6px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+        .remove-song { color: #ff4444; cursor: pointer; font-size: 20px; }
+        .save-composition-btn { width: 100%; padding: 12px; background: #4CAF50; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; margin-top: 10px; }
+        .fab { position: fixed; bottom: 20px; right: 20px; width: 56px; height: 56px; background: linear-gradient(135deg, #800000 0%, #FFD700 100%); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.2); transition: transform 0.3s; }
+        .fab:hover { transform: scale(1.1); }
+        .demo-info { background: #e3f2fd; color: #1976d2; padding: 10px; border-radius: 6px; margin-bottom: 20px; font-size: 12px; text-align: center; }
+        .action-buttons { display: flex; gap: 10px; margin-top: 10px; }
+        .btn-small { padding: 5px 10px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; flex: 1; }
+        .btn-view { background: #4CAF50; color: white; }
+        .btn-delete { background: #ff4444; color: white; }
+        .empty-state { text-align: center; color: #999; margin: 50px 0; }
+        .form-textarea { min-height: 100px; resize: vertical; }
+    </style>
+</head>
+<body>
+    <div class="container" id="app"></div>
+
+    <script>
+        // Mock data
+        const mockUsers = [
+            { id: 1, username: 'admin', password: 'admin123', full_name: 'Administrator', role: 'admin' },
+            { id: 2, username: 'user', password: 'user123', full_name: 'User Test', role: 'user' }
+        ];
+
+        const mockSongs = [
+            { id: 1, title: 'Amazing Grace', song_key: 'G', tempo: 'slow', theme: 'penyembahan', artist: 'Traditional', lyrics: 'Amazing grace, how sweet the sound\nThat saved a wretch like me\nI once was lost, but now am found\nWas blind, but now I see' },
+            { id: 2, title: 'How Great is Our God', song_key: 'C', tempo: 'medium', theme: 'pujian', artist: 'Chris Tomlin', lyrics: 'The splendor of the King\nClothed in majesty\nLet all the earth rejoice\nAll the earth rejoice' },
+            { id: 3, title: 'Way Maker', song_key: 'D', tempo: 'slow', theme: 'penyembahan', artist: 'Sinach', lyrics: 'You are here, moving in our midst\nI worship You, I worship You\nYou are here, working in this place\nI worship You, I worship You' }
+        ];
+
+        let mockCompositions = [];
+        let authToken = localStorage.getItem('worship_token');
+        let currentUser = null;
+        let state = { currentTab: 'songs', selectedSongs: [], songs: [], compositions: [], filters: { search: '', key: '', tempo: '', theme: '' } };
+
+        // Mock API
+        function handleMockAPI(endpoint, method, data) {
+            return new Promise((resolve, reject) => {
+                setTimeout(() => {
+                    if (endpoint === 'auth/login') {
+                        const user = mockUsers.find(u => u.username === data.username && u.password === data.password);
+                        if (user) resolve({ token: 'mock-token-' + user.id, user: { id: user.id, username: user.username, full_name: user.full_name, role: user.role } });
+                        else reject(new Error('Username atau password salah'));
+                    } else if (endpoint === 'auth/register') {
+                        const existingUser = mockUsers.find(u => u.username === data.username);
+                        if (existingUser) reject(new Error('Username sudah digunakan'));
+                        else resolve({ message: 'Pendaftaran berhasil' });
+                    } else if (endpoint === 'songs' || endpoint.startsWith('songs?')) {
+                        let filteredSongs = [...mockSongs];
+                        if (endpoint.includes('?')) {
+                            const params = new URLSearchParams(endpoint.split('?')[1]);
+                            const search = params.get('search');
+                            if (search) filteredSongs = filteredSongs.filter(song => song.title.toLowerCase().includes(search.toLowerCase()));
+                        }
+                        if (method === 'POST') {
+                            const newSong = { id: mockSongs.length + 1, ...data };
+                            mockSongs.push(newSong);
+                            resolve(newSong);
+                        } else resolve(filteredSongs);
+                    } else if (endpoint === 'compositions') {
+                        if (method === 'POST') {
+                            const newComp = { id: mockCompositions.length + 1, ...data, created_at: new Date().toISOString(), song_count: data.songs.length };
+                            mockCompositions.push(newComp);
+                            resolve(newComp);
+                        } else resolve(mockCompositions);
+                    } else if (endpoint.startsWith('compositions/')) {
+                        const id = parseInt(endpoint.split('/')[1]);
+                        if (method === 'DELETE') {
+                            mockCompositions = mockCompositions.filter(c => c.id !== id);
+                            resolve({ message: 'Deleted' });
+                        } else {
+                            const comp = mockCompositions.find(c => c.id === id);
+                            if (comp) resolve(comp);
+                            else reject(new Error('Not found'));
+                        }
+                    }
+                }, 300);
+            });
+        }
+
+        async function apiCall(endpoint, method = 'GET', data = null) {
+            try {
+                showLoading();
+                const result = await handleMockAPI(endpoint, method, data);
+                hideLoading();
+                return result;
+            } catch (error) {
+                hideLoading();
+                throw error;
+            }
+        }
+
+        function showLoading() {
+            if (!document.querySelector('.loading-overlay')) {
+                const loading = document.createElement('div');
+                loading.className = 'loading-overlay';
+                loading.innerHTML = '<div class="loading-content"><div class="spinner"></div><p style="margin-top: 10px;">Loading...</p></div>';
+                document.body.appendChild(loading);
+            }
+        }
+
+        function hideLoading() {
+            const loading = document.querySelector('.loading-overlay');
+            if (loading) loading.remove();
+        }
+
+        function showMessage(message, type = 'info') {
+            const existingMessages = document.querySelectorAll('.message');
+            existingMessages.forEach(msg => msg.remove());
+            
+            const messageEl = document.createElement('div');
+            messageEl.className = `message ${type}`;
+            messageEl.textContent = message;
+            
+            const container = document.querySelector('.auth-card') || document.querySelector('.content');
+            if (container) {
+                container.insertBefore(messageEl, container.firstChild);
+                setTimeout(() => { if (messageEl.parentNode) messageEl.remove(); }, 5000);
+            }
+        }
+
+        async function login() {
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+            
+            if (!username || !password) {
+                showMessage('Mohon isi username dan password', 'error');
+                return;
+            }
+            
+            try {
+                const result = await apiCall('auth/login', 'POST', { username, password });
+                authToken = result.token;
+                currentUser = result.user;
+                localStorage.setItem('worship_token', authToken);
+                localStorage.setItem('worship_user', JSON.stringify(currentUser));
+                showMessage('Login berhasil!', 'success');
+                setTimeout(() => showMainApp(), 1000);
+            } catch (error) {
+                showMessage(error.message, 'error');
+            }
+			try {
+        const result = await apiCall('auth/login', 'POST', { username, password });
+        authToken = result.token;
+        currentUser = result.user;
+        localStorage.setItem('worship_token', authToken);
+        localStorage.setItem('worship_user', JSON.stringify(currentUser));
+        
+        showMessage('Login berhasil!', 'success');
+        
+        // Redirect admin ke admin.html
+        if (currentUser.role === 'admin') {
+            setTimeout(() => window.location.href = 'admin.html', 1000);
+        } else {
+            setTimeout(() => showMainApp(), 1000);
+        }
+    } catch (error) {
+        showMessage(error.message, 'error');
+    }
+        }
+
+        async function register() {
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+            const fullName = document.getElementById('fullName').value.trim();
+            
+            if (!username || !password) {
+                showMessage('Mohon isi username dan password', 'error');
+                return;
+            }
+            
+            try {
+                await apiCall('auth/register', 'POST', { username, password, full_name: fullName });
+                showMessage('Pendaftaran berhasil! Silakan login.', 'success');
+                setTimeout(() => showLogin(), 2000);
+            } catch (error) {
+                showMessage(error.message, 'error');
+            }
+        }
+
+        function logout() {
+            authToken = null;
+            currentUser = null;
+            localStorage.removeItem('worship_token');
+            localStorage.removeItem('worship_user');
+            state.selectedSongs = [];
+            showLogin();
+        }
+
+        function showLogin() {
+            document.getElementById('app').innerHTML = `
+                <div class="auth-container">
+                    <div class="auth-card">
+                       
+                        <h1 class="auth-title">Worship Leader</h1>
+                        <p class="auth-subtitle">Masuk ke akun Anda</p>
+                        <div class="form-group">
+                            <label class="form-label">Username</label>
+                            <input type="text" class="form-input" id="username" placeholder="Masukkan username">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Password</label>
+                            <input type="password" class="form-input" id="password" placeholder="Masukkan password">
+                        </div>
+                        <button class="btn-primary" onclick="login()">Masuk</button>
+                        <div class="auth-switch">
+                            Belum punya akun? <a onclick="showRegister()">Daftar</a>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.addEventListener('keypress', e => { if (e.key === 'Enter') login(); });
+        }
+
+        function showRegister() {
+            document.getElementById('app').innerHTML = `
+                <div class="auth-container">
+                    <div class="auth-card">
+                        <h1 class="auth-title">Worship Leader</h1>
+                        <p class="auth-subtitle">Buat akun baru</p>
+                        <div class="form-group">
+                            <label class="form-label">Username *</label>
+                            <input type="text" class="form-input" id="username" placeholder="Masukkan username">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Password *</label>
+                            <input type="password" class="form-input" id="password" placeholder="Masukkan password">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Nama Lengkap</label>
+                            <input type="text" class="form-input" id="fullName" placeholder="Masukkan nama lengkap">
+                        </div>
+                        <button class="btn-primary" onclick="register()">Daftar</button>
+                        <div class="auth-switch">
+                            Sudah punya akun? <a onclick="showLogin()">Masuk</a>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function showMainApp() {
+            let content = '';
+            switch(state.currentTab) {
+                case 'songs': await loadSongs(); content = renderSongsContent(); break;
+                case 'composer': content = renderComposer(); break;
+                case 'saved': await loadCompositions(); content = renderSavedContent(); break;
+            }
+            
+            document.getElementById('app').innerHTML = `
+                <div class="header">
+                    <div class="header-title">Halo, ${currentUser.full_name || currentUser.username}</div>
+                    <button class="logout-btn" onclick="logout()">Keluar</button>
+                </div>
+                <div class="nav-tabs">
+                    <button class="nav-tab ${state.currentTab === 'songs' ? 'active' : ''}" onclick="switchTab('songs')">Lagu</button>
+                    <button class="nav-tab ${state.currentTab === 'composer' ? 'active' : ''}" onclick="switchTab('composer')">Komposisi</button>
+                    <button class="nav-tab ${state.currentTab === 'saved' ? 'active' : ''}" onclick="switchTab('saved')">Tersimpan</button>
+                </div>
+                <div class="content">${content}</div>
+                ${state.currentTab === 'songs' ? '<div class="fab" onclick="showAddSongModal()">+</div>' : ''}
+            `;
+        }
+
+        function renderSongsContent() {
+            return `
+                <input type="text" class="search-input" placeholder="Cari lagu..." value="${state.filters.search}" oninput="updateFilter('search', this.value)">
+                <div class="filter-container">
+                    <select class="filter-select" onchange="updateFilter('key', this.value)">
+                        <option value="">Semua Nada</option>
+                        <option value="C">C</option><option value="D">D</option><option value="E">E</option><option value="F">F</option><option value="G">G</option><option value="A">A</option><option value="B">B</option>
+                    </select>
+                    <select class="filter-select" onchange="updateFilter('tempo', this.value)">
+                        <option value="">Semua Tempo</option>
+                        <option value="slow">Lambat</option><option value="medium">Sedang</option><option value="fast">Cepat</option>
+                    </select>
+                </div>
+                <div id="songsList"></div>
+            `;
+        }
+
+        async function loadSongs() {
+            try {
+                const params = new URLSearchParams();
+                if (state.filters.search) params.append('search', state.filters.search);
+                const endpoint = params.toString() ? `songs?${params.toString()}` : 'songs';
+                state.songs = await apiCall(endpoint);
+                renderSongs();
+            } catch (error) {
+                state.songs = [];
+                renderSongs();
+            }
+        }
+
+        function renderSongs() {
+            const container = document.getElementById('songsList');
+            if (!container) return;
+            
+            if (state.songs.length === 0) {
+                container.innerHTML = '<div class="empty-state">Tidak ada lagu ditemukan</div>';
+                return;
+            }
+            
+            let html = '';
+            state.songs.forEach(song => {
+                html += `
+                    <div class="song-item" onclick="showSongDetail(${song.id})">
+                        <div class="song-title">${song.title}</div>
+                        <div class="song-meta">
+                            <span class="song-tag">Nada: ${song.song_key}</span>
+                            <span class="song-tag">${getTempoLabel(song.tempo)}</span>
+                            <span class="song-tag">${song.theme}</span>
+                        </div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        function renderComposer() {
+            let html = `
+                <div class="composition-builder">
+                    <h3>Buat Komposisi Ibadah</h3>
+                    <div class="form-group">
+                        <label class="form-label">Nama Komposisi</label>
+                        <input type="text" class="form-input" id="compositionName" placeholder="Contoh: Ibadah Minggu Pagi">
+                    </div>
+                    <div class="selected-songs">
+                        <h4>Lagu Terpilih:</h4>
+            `;
+            
+            if (state.selectedSongs.length === 0) {
+                html += '<p style="color: #999;">Belum ada lagu dipilih</p>';
+            } else {
+                state.selectedSongs.forEach((song, index) => {
+                    html += `
+                        <div class="selected-song-item">
+                            <span>${index + 1}. ${song.title} (${song.song_key})</span>
+                            <span class="remove-song" onclick="removeSongFromComposition(${song.id})">×</span>
+                        </div>
+                    `;
+                });
+            }
+            
+            html += `
+                    </div>
+                    <button class="save-composition-btn" onclick="saveComposition()">Simpan Komposisi</button>
+                </div>
+                <h3>Pilih Lagu untuk Komposisi:</h3>
+                <div id="composerSongsList"></div>
+            `;
+            
+            setTimeout(() => loadSongsForComposer(), 100);
+            return html;
+        }
+
+        async function loadSongsForComposer() {
+            try {
+                const songs = await apiCall('songs');
+                const container = document.getElementById('composerSongsList');
+                if (!container) return;
+                
+                let html = '';
+                songs.forEach(song => {
+                    const isSelected = state.selectedSongs.find(s => s.id === song.id);
+                    html += `
+                        <div class="song-item" onclick="addSongToComposition(${song.id})" style="${isSelected ? 'opacity: 0.5;' : ''}">
+                            <div class="song-title">${song.title} ${isSelected ? '(Sudah dipilih)' : ''}</div>
+                            <div class="song-meta">
+                                <span class="song-tag">Nada: ${song.song_key}</span>
+                                <span class="song-tag">${getTempoLabel(song.tempo)}</span>
+                            </div>
+                        </div>
+                    `;
+                });
+                container.innerHTML = html;
+            } catch (error) {
+                console.error('Error loading songs:', error);
+            }
+        }
+
+        function renderSavedContent() {
+            return '<div id="compositionsList"></div>';
+        }
+
+        async function loadCompositions() {
+            try {
+                state.compositions = await apiCall('compositions');
+                renderSaved();
+            } catch (error) {
+                state.compositions = [];
+                renderSaved();
+            }
+        }
+
+        function renderSaved() {
+            const container = document.getElementById('compositionsList');
+            if (!container) return;
+            
+            if (state.compositions.length === 0) {
+                container.innerHTML = '<div class="empty-state">Belum ada komposisi tersimpan</div>';
+                return;
+            }
+            
+            let html = '';
+            state.compositions.forEach(comp => {
+                html += `
+                    <div class="composition-item">
+                        <div class="composition-title">${comp.name}</div>
+                        <div class="song-meta">
+                            <span class="song-tag">${comp.song_count} lagu</span>
+                            <span class="song-tag">${new Date(comp.created_at).toLocaleDateString('id-ID')}</span>
+                        </div>
+                        <div class="action-buttons">
+                            <button class="btn-small btn-view" onclick="viewComposition(${comp.id})">Lihat</button>
+                            <button class="btn-small btn-delete" onclick="deleteComposition(${comp.id})">Hapus</button>
+                        </div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        function getTempoLabel(tempo) {
+            const labels = { 'slow': 'Lambat', 'medium': 'Sedang', 'fast': 'Cepat' };
+            return labels[tempo] || tempo;
+        }
+
+        function updateFilter(type, value) {
+            state.filters[type] = value;
+            if (state.currentTab === 'songs') {
+                clearTimeout(window.searchTimeout);
+                window.searchTimeout = setTimeout(() => loadSongs(), 300);
+            }
+        }
+
+        function switchTab(tab) {
+            state.currentTab = tab;
+            showMainApp();
+        }
+
+        function showSongDetail(id) {
+            const song = state.songs.find(s => s.id == id);
+            if (!song) return;
+            
+            const modal = document.createElement('div');
+            modal.className = 'modal show';
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2>${song.title}</h2>
+                        <span class="modal-close" onclick="closeModal()">×</span>
+                    </div>
+                    <div class="song-meta">
+                        <span class="song-tag">Nada: ${song.song_key}</span>
+                        <span class="song-tag">${getTempoLabel(song.tempo)}</span>
+                        <span class="song-tag">${song.theme}</span>
+                    </div>
+                    <div class="lyrics">${song.lyrics}</div>
+                    ${state.currentTab === 'composer' ? `<button class="btn-primary" onclick="addSongToComposition(${song.id}); closeModal();">Tambah ke Komposisi</button>` : ''}
+                </div>
+            `;
+            modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+            document.body.appendChild(modal);
+        }
+
+        function showAddSongModal() {
+            const modal = document.createElement('div');
+            modal.className = 'modal show';
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2>Tambah Lagu Baru</h2>
+                        <span class="modal-close" onclick="closeModal()">×</span>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Judul Lagu</label>
+                        <input type="text" class="form-input" id="newSongTitle" placeholder="Masukkan judul lagu">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Artis</label>
+                        <input type="text" class="form-input" id="newSongArtist" placeholder="Masukkan nama artis">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Nada Dasar</label>
+                        <select class="form-input" id="newSongKey">
+                            <option value="C">C</option>
+                            <option value="D">D</option>
+                            <option value="E">E</option>
+                            <option value="F">F</option>
+                            <option value="G">G</option>
+                            <option value="A">A</option>
+                            <option value="B">B</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Tempo</label>
+                        <select class="form-input" id="newSongTempo">
+                            <option value="slow">Lambat</option>
+                            <option value="medium">Sedang</option>
+                            <option value="fast">Cepat</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Tema</label>
+                        <select class="form-input" id="newSongTheme">
+                            <option value="penyembahan">Penyembahan</option>
+                            <option value="pujian">Pujian</option>
+                            <option value="penghiburan">Penghiburan</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Lirik</label>
+                        <textarea class="form-textarea" id="newSongLyrics" placeholder="Masukkan lirik lagu"></textarea>
+                    </div>
+                    <button class="btn-primary" onclick="addNewSong()">Simpan Lagu</button>
+                </div>
+            `;
+            modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+            document.body.appendChild(modal);
+        }
+
+        async function addNewSong() {
+            const title = document.getElementById('newSongTitle').value.trim();
+            const lyrics = document.getElementById('newSongLyrics').value.trim();
+            
+            if (!title || !lyrics) {
+                showMessage('Mohon isi judul dan lirik lagu', 'error');
+                return;
+            }
+            
+            try {
+                await apiCall('songs', 'POST', {
+                    title,
+                    song_key: document.getElementById('newSongKey').value,
+                    tempo: document.getElementById('newSongTempo').value,
+                    theme: document.getElementById('newSongTheme').value,
+                    lyrics,
+                    artist: document.getElementById('newSongArtist').value.trim()
+                });
+                
+                showMessage('Lagu berhasil ditambahkan!', 'success');
+                closeModal();
+                await loadSongs();
+            } catch (error) {
+                showMessage(error.message, 'error');
+            }
+        }
+
+        async function saveComposition() {
+            const name = document.getElementById('compositionName').value.trim();
+            
+            if (!name) {
+                showMessage('Mohon isi nama komposisi', 'error');
+                return;
+            }
+            
+            if (state.selectedSongs.length === 0) {
+                showMessage('Mohon pilih minimal satu lagu', 'error');
+                return;
+            }
+            
+            try {
+                await apiCall('compositions', 'POST', {
+                    name,
+                    songs: state.selectedSongs.map(s => ({ id: s.id }))
+                });
+                
+                showMessage('Komposisi berhasil disimpan!', 'success');
+                state.selectedSongs = [];
+                switchTab('saved');
+            } catch (error) {
+                showMessage(error.message, 'error');
+            }
+        }
+
+        async function addSongToComposition(id) {
+            try {
+                const songs = await apiCall('songs');
+                const song = songs.find(s => s.id == id);
+                
+                if (song && !state.selectedSongs.find(s => s.id == id)) {
+                    state.selectedSongs.push(song);
+                    if (state.currentTab === 'composer') {
+                        showMainApp();
+                    }
+                    showMessage(`"${song.title}" ditambahkan ke komposisi`, 'success');
+                } else if (state.selectedSongs.find(s => s.id == id)) {
+                    showMessage('Lagu ini sudah ada dalam komposisi', 'error');
+                }
+            } catch (error) {
+                showMessage('Error adding song', 'error');
+            }
+        }
+
+        function removeSongFromComposition(id) {
+            const song = state.selectedSongs.find(s => s.id == id);
+            state.selectedSongs = state.selectedSongs.filter(s => s.id != id);
+            showMainApp();
+            if (song) {
+                showMessage(`"${song.title}" dihapus dari komposisi`, 'success');
+            }
+        }
+
+        async function viewComposition(id) {
+            try {
+                const comp = await apiCall(`compositions/${id}`);
+                
+                const modal = document.createElement('div');
+                modal.className = 'modal show';
+                modal.innerHTML = `
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h2>${comp.name}</h2>
+                            <span class="modal-close" onclick="closeModal()">×</span>
+                        </div>
+                        <h3>Daftar Lagu:</h3>
+                        <div style="margin-top: 10px;">
+                            ${comp.songs ? comp.songs.map((song, index) => `
+                                <div style="padding: 10px; background: #f9f9f9; margin-bottom: 10px; border-radius: 6px;">
+                                    <strong>${index + 1}. ${song.title}</strong> (${song.song_key})
+                                    <div style="color: #666; font-size: 14px; margin-top: 5px;">
+                                        ${getTempoLabel(song.tempo)} | ${song.theme}
+                                    </div>
+                                </div>
+                            `).join('') : '<p>Tidak ada lagu dalam komposisi ini</p>'}
+                        </div>
+                    </div>
+                `;
+                modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+                document.body.appendChild(modal);
+            } catch (error) {
+                showMessage('Error loading composition', 'error');
+            }
+        }
+
+        async function deleteComposition(id) {
+            if (!confirm('Apakah Anda yakin ingin menghapus komposisi ini?')) return;
+            
+            try {
+                await apiCall(`compositions/${id}`, 'DELETE');
+                showMessage('Komposisi berhasil dihapus', 'success');
+                await loadCompositions();
+            } catch (error) {
+                showMessage(error.message, 'error');
+            }
+        }
+
+        function closeModal() {
+            const modals = document.querySelectorAll('.modal');
+            modals.forEach(modal => modal.remove());
+        }
+
+        // Initialize app
+        window.onload = async function() {
+            const savedToken = localStorage.getItem('worship_token');
+            const savedUser = localStorage.getItem('worship_user');
+            
+            if (savedToken && savedUser) {
+                authToken = savedToken;
+                try {
+                    currentUser = JSON.parse(savedUser);
+                    showMainApp();
+                } catch (error) {
+                    localStorage.removeItem('worship_user');
+                    showLogin();
+                }
+            } else {
+                showLogin();
+            }
+        };
+    </script>
+</body>
+</html>
