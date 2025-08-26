@@ -1,10 +1,10 @@
 <?php
 // config.php - File konfigurasi
-define('DB_HOST', 'localhost');
-define('DB_NAME', 'innobi_worship_leader');
-define('DB_USER', 'innobi_wlapp');
-define('DB_PASS', 'Project789'); 
-define('JWT_SECRET', 'It-Project1'); 
+define('DB_HOST', 'isien dewe');
+define('DB_NAME', 'isien dewe');
+define('DB_USER', 'isien dewe yaa');
+define('DB_PASS', 'isien dewe woi'); 
+define('JWT_SECRET', 'isien dewe ya'); 
 define('TOKEN_EXPIRY', 86400); // Masa berlaku token: 24 jam dalam detik
 
 // Error reporting untuk debugging. Matikan di produksi.
